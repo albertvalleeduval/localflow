@@ -1,5 +1,6 @@
 # Core
 onnx-asr[cpu]
+huggingface_hub    # auto-download of the model on first launch
 sounddevice
 numpy
 pywin32
