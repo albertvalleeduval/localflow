@@ -80,9 +80,15 @@ def _dpi_scale():
 
 
 class Overlay:
-    def __init__(self, level_source=None, lang=i18n.DEFAULT):
-        """`level_source` : fonction rendant le niveau micro (0..1), pour le vumètre."""
+    def __init__(self, level_source=None, lang=i18n.DEFAULT, enabled=True):
+        """`level_source` : fonction rendant le niveau micro (0..1), pour le vumètre.
+
+        `enabled` : pastille désactivée = fenêtre jamais montrée. La fenêtre
+        existe quand même : tkinter exige le thread principal, impossible de
+        la créer après coup si le réglage change en cours de route.
+        """
         self.level_source = level_source or (lambda: 0.0)
+        self.enabled = enabled
         self.set_lang(lang)
         self._events = queue.Queue()
         self._state = "hidden"
@@ -171,7 +177,7 @@ class Overlay:
             self.root.destroy()
             return
 
-        self._show(self._state != "hidden")
+        self._show(self._state != "hidden" and self.enabled)
         if self._visible:
             self._draw()
         self.root.after(TICK_MS, self._tick)

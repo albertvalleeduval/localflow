@@ -249,6 +249,7 @@ class LocalFlow:
             self.tray.lang = i18n.resolve(new["ui_language"])
         if self.overlay is not None:
             self.overlay.set_lang(i18n.resolve(new["ui_language"]))
+            self.overlay.enabled = new["overlay"]
         self.history = History(size=new["history_size"], log=log)
         self.injector = Injector(
             paste_mode=new["paste_mode"], replacements=new["replacements"],
@@ -271,15 +272,6 @@ class LocalFlow:
         except Exception as exc:                           # noqa: BLE001
             log(f"could not load the model: {exc!r}")
             self._set_state("hidden")
-
-    def wait(self):
-        """Boucle d'attente quand la pastille est désactivée."""
-        try:
-            while not self._stopping:
-                time.sleep(0.2)
-        except KeyboardInterrupt:
-            pass
-        self.shutdown()
 
     def shutdown(self):
         self._stopping = True
@@ -498,15 +490,16 @@ def main():
         return 0
     log(f"localflow starting (log: {LOG_PATH})")
 
-    overlay = None
-    if cfg["overlay"]:
-        # Créée avant tout le reste : elle doit s'afficher pendant que le
-        # modèle charge, et tkinter n'accepte que le thread principal.
-        overlay = Overlay(lang=i18n.resolve(cfg["ui_language"]))
+    # Créée avant tout le reste : elle doit s'afficher pendant que le modèle
+    # charge, et tkinter n'accepte que le thread principal. Créée même
+    # désactivée (alors jamais montrée) : le réglage `overlay` peut changer à
+    # chaud, et il serait impossible de la créer après coup depuis un autre
+    # thread.
+    overlay = Overlay(lang=i18n.resolve(cfg["ui_language"]),
+                      enabled=cfg["overlay"])
 
     app = LocalFlow(cfg, overlay=overlay)
-    if overlay is not None:
-        overlay.level_source = lambda: app.recorder.level if app.recorder else 0.0
+    overlay.level_source = lambda: app.recorder.level if app.recorder else 0.0
     # Le raccourci est armé avant le chargement : une dictée lancée trop tôt est
     # refusée avec l'état « chargement » plutôt que silencieusement perdue.
     try:
@@ -517,14 +510,11 @@ def main():
     app.start_tray()
     app.start_threads()
 
-    if overlay is not None:
-        try:
-            overlay.run()
-        except KeyboardInterrupt:
-            pass
-        app.shutdown()
-    else:
-        app.wait()
+    try:
+        overlay.run()
+    except KeyboardInterrupt:
+        pass
+    app.shutdown()
     log("localflow stopping")
     del lock
     return 0
