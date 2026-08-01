@@ -235,8 +235,8 @@ class LocalFlow:
                 self.bind_hotkey()
             except HotkeyError as exc:
                 # Sans repli, un raccourci invalide laisserait le démon sourd.
-                log(f"raccourci invalide ({exc}), "
-                    f"retour à {old['hotkey']} en mode {old['mode']}")
+                log(f"invalid hotkey ({exc}), "
+                    f"falling back to {old['hotkey']} in {old['mode']} mode")
                 self.cfg = dict(new, hotkey=old["hotkey"], mode=old["mode"])
                 try:
                     self.bind_hotkey()

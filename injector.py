@@ -291,7 +291,7 @@ class Injector:
         try:
             saved = get_clipboard_text()
         except (InjectionError, pywintypes.error) as exc:
-            self.log(f"presse-papiers illisible ({exc}), repli sur la frappe")
+            self.log(f"clipboard unreadable ({exc}), falling back to typing")
             return type_text(text, self.type_delay_s)
 
         set_clipboard_text(text)
@@ -301,7 +301,7 @@ class Injector:
             try:
                 set_clipboard_text(saved)
             except InjectionError as exc:
-                self.log(f"restauration du presse-papiers impossible : {exc}")
+                self.log(f"could not restore the clipboard: {exc}")
 
 
 # ----------------------------------------------------------------- test isolé

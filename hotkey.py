@@ -183,7 +183,7 @@ class HotkeyListener:
         try:
             self._install()
         except OSError as exc:
-            self.log(f"installation du raccourci impossible : {exc}")
+            self.log(f"could not install the keyboard hook: {exc}")
             self._ready.set()
             return
         # Minuterie de thread : les WM_TIMER arrivent dans cette boucle, donc
@@ -201,7 +201,7 @@ class HotkeyListener:
                 try:
                     self._install()
                 except OSError as exc:
-                    self.log(f"réinstallation du raccourci impossible : {exc}")
+                    self.log(f"could not reinstall the keyboard hook: {exc}")
             else:
                 user32.TranslateMessage(ctypes.byref(msg))
                 user32.DispatchMessageW(ctypes.byref(msg))
@@ -245,4 +245,4 @@ class HotkeyListener:
         try:
             fn()
         except Exception as exc:                              # noqa: BLE001
-            self.log(f"erreur dans la réaction au raccourci : {exc!r}")
+            self.log(f"error in the hotkey callback: {exc!r}")

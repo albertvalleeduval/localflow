@@ -78,7 +78,7 @@ class Recorder:
             self._pump.join(timeout=2.0)
             self._pump = None
         if self._overflows:
-            self.log(f"micro : {self._overflows} dépassement(s) de tampon")
+            self.log(f"microphone: {self._overflows} buffer overflow(s)")
         return self._blocks * self.block_size / SAMPLE_RATE
 
     @property
@@ -114,7 +114,7 @@ class Recorder:
             except Exception as exc:                      # noqa: BLE001
                 # Une exception ici tuerait le thread et rendrait le micro muet
                 # sans le moindre signe.
-                self.log(f"erreur de traitement d'un bloc audio : {exc!r}")
+                self.log(f"error while processing an audio block: {exc!r}")
 
 
 def list_devices():

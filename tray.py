@@ -104,7 +104,7 @@ class Tray:
                     0, ICON, win32con.IMAGE_ICON, 0, 0,
                     win32con.LR_LOADFROMFILE | win32con.LR_DEFAULTSIZE)
             except Exception as exc:                          # noqa: BLE001
-                self.log(f"icône illisible ({exc}), repli sur celle du système")
+                self.log(f"icon unreadable ({exc}), falling back to the system one")
         return win32gui.LoadIcon(0, win32con.IDI_APPLICATION)
 
     def _on_tray(self, hwnd, msg, wparam, lparam):
@@ -162,7 +162,7 @@ class Tray:
         try:
             fn()
         except Exception as exc:                              # noqa: BLE001
-            self.log(f"erreur depuis la zone de notification : {exc!r}")
+            self.log(f"error from the tray menu: {exc!r}")
 
 
 if __name__ == "__main__":

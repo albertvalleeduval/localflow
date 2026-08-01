@@ -138,7 +138,7 @@ class StreamingTranscriber:
             except Exception as exc:                       # noqa: BLE001
                 # Un morceau qui échoue ne doit pas tuer le thread : le reste
                 # de la dictée serait perdu sans le moindre signe.
-                self.log(f"morceau intranscriptible, ignoré : {exc!r}")
+                self.log(f"chunk could not be transcribed, skipped: {exc!r}")
                 self._parts.append("")
                 continue
             dt = time.perf_counter() - t0
@@ -150,8 +150,8 @@ class StreamingTranscriber:
             if text and text == previous:
                 text = ""
             self._parts.append(text)
-            self.log(f"  morceau {len(self._chunk_stats)} : "
-                     f"{len(chunk) / SAMPLE_RATE:.1f}s audio -> {dt:.2f}s calcul")
+            self.log(f"  chunk {len(self._chunk_stats)}: "
+                     f"{len(chunk) / SAMPLE_RATE:.1f}s audio -> {dt:.2f}s compute")
 
     def _tail(self):
         """Fin du texte déjà transcrit, passée en amorce du morceau suivant."""

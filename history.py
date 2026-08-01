@@ -85,7 +85,7 @@ class History:
         except OSError as exc:
             # Une dictée réussie ne doit pas échouer parce que l'historique
             # est en lecture seule ou le disque plein.
-            self.log(f"historique non écrit : {exc}")
+            self.log(f"history not written: {exc}")
 
     def entries(self, limit=None):
         """Les dictées, de la plus récente à la plus ancienne."""
