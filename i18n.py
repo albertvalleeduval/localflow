@@ -60,6 +60,10 @@ CATALOG = {
         "tray.log": "Ouvrir le journal",
         "tray.quit": "Quitter",
 
+        # Pastille d'état
+        "overlay.loading": "chargement…",
+        "overlay.working": "transcription…",
+
         # Traits mesurés de la page Ma voix
         "voice.words_per_sentence": "Mots par phrase",
         "voice.vocabulary": "Vocabulaire distinct",
@@ -96,6 +100,9 @@ CATALOG = {
         "tray.reload": "Reload configuration",
         "tray.log": "Open the log",
         "tray.quit": "Quit",
+
+        "overlay.loading": "loading…",
+        "overlay.working": "transcribing…",
 
         "voice.words_per_sentence": "Words per sentence",
         "voice.vocabulary": "Distinct vocabulary",

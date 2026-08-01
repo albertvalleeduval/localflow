@@ -247,6 +247,8 @@ class LocalFlow:
             # Le menu est reconstruit à chaque clic droit : changer la langue
             # ici suffit, rien à réinstaller.
             self.tray.lang = i18n.resolve(new["ui_language"])
+        if self.overlay is not None:
+            self.overlay.set_lang(i18n.resolve(new["ui_language"]))
         self.history = History(size=new["history_size"], log=log)
         self.injector = Injector(
             paste_mode=new["paste_mode"], replacements=new["replacements"],
@@ -500,7 +502,7 @@ def main():
     if cfg["overlay"]:
         # Créée avant tout le reste : elle doit s'afficher pendant que le
         # modèle charge, et tkinter n'accepte que le thread principal.
-        overlay = Overlay()
+        overlay = Overlay(lang=i18n.resolve(cfg["ui_language"]))
 
     app = LocalFlow(cfg, overlay=overlay)
     if overlay is not None:

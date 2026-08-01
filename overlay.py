@@ -27,6 +27,8 @@ import queue
 import time
 import tkinter as tk
 
+import i18n
+
 # Couleur rendue totalement transparente par Windows : elle découpe les coins
 # arrondis de la pilule dans une fenêtre par ailleurs rectangulaire.
 TRANSPARENT = "#ff00ff"
@@ -37,10 +39,6 @@ COLORS = {
     "loading": "#ffb340",
     "listening": "#ff4b4b",
     "working": "#4b9bff",
-}
-LABELS = {
-    "loading": "chargement…",
-    "working": "transcription…",
 }
 
 # Géométrie en unités de dessin, multipliée par l'échelle DPI.
@@ -82,9 +80,10 @@ def _dpi_scale():
 
 
 class Overlay:
-    def __init__(self, level_source=None):
+    def __init__(self, level_source=None, lang=i18n.DEFAULT):
         """`level_source` : fonction rendant le niveau micro (0..1), pour le vumètre."""
         self.level_source = level_source or (lambda: 0.0)
+        self.set_lang(lang)
         self._events = queue.Queue()
         self._state = "hidden"
         self._visible = False
@@ -139,6 +138,12 @@ class Overlay:
     def set_state(self, state):
         """Appelable depuis n'importe quel thread."""
         self._events.put(state)
+
+    def set_lang(self, lang):
+        """Appelable depuis n'importe quel thread : simple remplacement d'un
+        dictionnaire, lu par le thread tkinter au dessin suivant."""
+        self.labels = {"loading": i18n.t("overlay.loading", lang),
+                       "working": i18n.t("overlay.working", lang)}
 
     def quit(self):
         self._events.put("__quit__")
@@ -206,7 +211,7 @@ class Overlay:
         else:
             self.canvas.create_text(self._px(CONTENT_X), cy, anchor="w",
                                     fill=FG, font=self.font,
-                                    text=LABELS.get(self._state, ""))
+                                    text=self.labels.get(self._state, ""))
 
     def _pill(self):
         """Fond arrondi : deux disques aux extrémités et un rectangle au milieu."""
