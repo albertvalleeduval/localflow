@@ -20,7 +20,7 @@ DEFAULTS = {
     "mode": "hold",              # "hold" (maintien) ou "toggle" (bascule)
     "backend": "parakeet",       # "parakeet" ou "whisper"
     "model": None,               # None = modèle par défaut du backend
-    "language": "fr",
+    "language": "en",
     "replacements": {},          # corrections de noms propres appliquées au texte
     "vocabulary": "",            # backend whisper uniquement (initial_prompt)
     "paste_mode": "clipboard",   # "clipboard" (Ctrl+V) ou "type" (frappe)

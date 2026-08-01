@@ -234,7 +234,7 @@ affiche la config effective.
 | `mode` | `hold` | `hold` : tenir la touche. `toggle` : un appui démarre, un appui arrête. |
 | `backend` | `parakeet` | `parakeet` (CPU, recommandé) ou `whisper` (faster-whisper). |
 | `model` | `null` | Nom du modèle ; `null` = défaut du backend. |
-| `language` | `fr` | Langue forcée. |
+| `language` | `en` | Langue forcée (réglez-la sur la vôtre — voir Installation). |
 | `replacements` | `{}` | Corrections appliquées au texte final, `{"motif": "remplacement"}`. |
 | `vocabulary` | `""` | Noms propres passés en `initial_prompt` — backend `whisper` uniquement. |
 | `paste_mode` | `clipboard` | `clipboard` : Ctrl+V (rapide). `type` : frappe caractère par caractère, pour les champs qui bloquent le collage. |

@@ -225,7 +225,7 @@ the effective configuration.
 | `mode` | `hold` | `hold`: keep the key pressed. `toggle`: one press starts, one press stops. |
 | `backend` | `parakeet` | `parakeet` (CPU, recommended) or `whisper` (faster-whisper). |
 | `model` | `null` | Model name; `null` = backend default. |
-| `language` | `fr` | Forced language (set it to yours — see Installation). |
+| `language` | `en` | Forced language (set it to yours — see Installation). |
 | `replacements` | `{}` | Corrections applied to the final text, `{"pattern": "replacement"}`. |
 | `vocabulary` | `""` | Proper nouns passed as `initial_prompt` — `whisper` backend only. |
 | `paste_mode` | `clipboard` | `clipboard`: Ctrl+V (fast). `type`: character-by-character typing, for fields that block pasting. |
