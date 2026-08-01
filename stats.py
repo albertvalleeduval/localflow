@@ -218,6 +218,11 @@ def voice(entries, language="fr", ui_language="en"):
     lang = linguistics(language)
     stopwords, fillers, elisions = (lang["stopwords"], lang["fillers"],
                                     lang["elisions"])
+    # Bornées aux frontières de mots : comptées en sous-chaînes, « quoi »
+    # matcherait « pourquoi » et « like » matcherait « likely », ce qui
+    # gonflerait le taux d'hésitations du portrait.
+    filler_patterns = [(f, re.compile(r"(?<!\w)" + re.escape(f) + r"(?!\w)"))
+                       for f in fillers]
     words = []
     sentences = []
     questions = 0
@@ -238,8 +243,8 @@ def voice(entries, language="fr", ui_language="en"):
                 questions += 1
 
         low = text.lower()
-        for filler in fillers:
-            hits = low.count(filler)
+        for filler, pattern in filler_patterns:
+            hits = len(pattern.findall(low))
             if hits:
                 filler_hits[filler] += hits
 
