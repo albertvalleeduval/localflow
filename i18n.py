@@ -64,6 +64,16 @@ CATALOG = {
         "overlay.loading": "chargement…",
         "overlay.working": "transcription…",
 
+        # Bulles d'information
+        "tray.still_loading_title": "Chargement du modèle",
+        "tray.still_loading":
+            "Toujours en cours — au premier lancement, le modèle (~2,5 Go) "
+            "se télécharge, cela peut prendre un moment.",
+        "tray.load_failed_title": "Modèle non chargé",
+        "tray.load_failed":
+            "Le chargement du modèle a échoué. Vérifiez la connexion, "
+            "puis ouvrez le journal.",
+
         # Traits mesurés de la page Ma voix
         "voice.words_per_sentence": "Mots par phrase",
         "voice.vocabulary": "Vocabulaire distinct",
@@ -103,6 +113,15 @@ CATALOG = {
 
         "overlay.loading": "loading…",
         "overlay.working": "transcribing…",
+
+        "tray.still_loading_title": "Loading the model",
+        "tray.still_loading":
+            "Still working — on first launch the model (~2.5 GB) is "
+            "downloaded, which can take a while.",
+        "tray.load_failed_title": "Model not loaded",
+        "tray.load_failed":
+            "The model could not be loaded. Check your connection, "
+            "then open the log.",
 
         "voice.words_per_sentence": "Words per sentence",
         "voice.vocabulary": "Distinct vocabulary",

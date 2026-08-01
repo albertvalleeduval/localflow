@@ -267,11 +267,33 @@ class LocalFlow:
         return True
 
     def _load_quietly(self):
+        # Une bulle si le chargement s'éternise : au premier lancement, le
+        # modèle (~2,5 Go) se télécharge — sans console ni bulle, l'outil
+        # semble simplement planté. 30 s laissent passer sans bruit un
+        # chargement normal depuis le cache.
+        slow = threading.Timer(30.0, self._announce_slow_load)
+        slow.daemon = True
+        slow.start()
         try:
             self.load()
         except Exception as exc:                           # noqa: BLE001
             log(f"could not load the model: {exc!r}")
             self._set_state("hidden")
+            # Sans elle, l'échec (réseau coupé au premier lancement, le plus
+            # souvent) ne se voit que dans le journal.
+            self._notify("tray.load_failed_title", "tray.load_failed")
+        finally:
+            slow.cancel()
+
+    def _announce_slow_load(self):
+        if self.engine is None and not self._stopping:
+            self._notify("tray.still_loading_title", "tray.still_loading")
+
+    def _notify(self, title_key, body_key):
+        if self.tray is None:
+            return
+        lang = i18n.resolve(self.cfg["ui_language"])
+        self.tray.notify(i18n.t(title_key, lang), i18n.t(body_key, lang))
 
     def shutdown(self):
         self._stopping = True
