@@ -1,0 +1,12 @@
+# Core
+onnx-asr[cpu]
+sounddevice
+numpy
+pywin32
+
+# Settings/history/stats window (the daemon runs fine without it)
+pywebview
+
+# Optional: alternative Whisper backend ("backend": "whisper" in config.json).
+# Not recommended on CPU — see the latency section of the README.
+# faster-whisper

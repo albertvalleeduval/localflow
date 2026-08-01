@@ -1,0 +1,19 @@
+{
+  "hotkey": "ctrl+alt+d",
+  "mode": "hold",
+  "backend": "parakeet",
+  "model": null,
+  "language": "en",
+  "replacements": {},
+  "vocabulary": "",
+  "paste_mode": "clipboard",
+  "type_delay_ms": 10,
+  "min_chunk_s": 3.0,
+  "max_chunk_s": 12.0,
+  "silence_ms": 400,
+  "max_dictation_s": 300,
+  "input_device": null,
+  "overlay": true,
+  "history_size": 200,
+  "ui_language": "en"
+}

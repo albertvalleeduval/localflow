@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>localflow</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <nav class="sidebar">
+      <div class="brand">
+        <img class="brand-logo" src="logo.png" alt="">
+        <div>
+          <div class="brand-name">localflow</div>
+          <div class="brand-state">
+            <span class="dot" id="brand-dot"></span>
+            <span id="brand-state" data-i18n="state.checking">checking…</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="nav-item active" data-page="historique">
+        <span class="nav-icon">≡</span> <span data-i18n="nav.history">History</span>
+      </button>
+      <button class="nav-item" data-page="usage">
+        <span class="nav-icon">▤</span> <span data-i18n="nav.stats">Stats</span>
+      </button>
+      <button class="nav-item" data-page="voix">
+        <span class="nav-icon">◑</span> <span data-i18n="nav.voice">Your voice</span>
+      </button>
+      <button class="nav-item" data-page="etat">
+        <span class="nav-icon">◷</span> <span data-i18n="nav.status">Status</span>
+      </button>
+      <button class="nav-item" data-page="reglages">
+        <span class="nav-icon">⚙</span> <span data-i18n="nav.settings">Settings</span>
+      </button>
+      <button class="nav-item" data-page="apropos">
+        <span class="nav-icon">?</span> <span data-i18n="nav.about">About</span>
+      </button>
+
+      <div class="sidebar-foot">
+        <div class="hint" id="hotkey-hint">—</div>
+      </div>
+    </nav>
+
+    <main class="content">
+      <!-- ------------------------------------------------ Historique -->
+      <section class="page active" id="page-historique">
+        <header class="page-head">
+          <div>
+            <h1 data-i18n="history.title">History</h1>
+            <p class="sub" data-i18n="history.sub"></p>
+          </div>
+          <button class="btn ghost" id="clear-history" data-i18n="history.clear"></button>
+        </header>
+
+        <div class="toolbar">
+          <input type="search" id="search" data-i18n-placeholder="history.search"
+                 autocomplete="off">
+          <span class="count" id="history-count"></span>
+        </div>
+
+        <div id="history-list" class="list"></div>
+        <div class="empty" id="history-empty" hidden>
+          <p data-i18n="history.empty"></p>
+          <p class="sub" data-i18n="history.empty_sub"></p>
+        </div>
+      </section>
+
+      <!-- -------------------------------------------------- Réglages -->
+      <section class="page" id="page-reglages">
+        <header class="page-head">
+          <div>
+            <h1 data-i18n="settings.title">Settings</h1>
+            <p class="sub" data-i18n="settings.sub"></p>
+          </div>
+          <button class="btn" id="save-config" data-i18n="settings.save"></button>
+        </header>
+
+        <div class="banner error" id="config-error" hidden></div>
+        <div class="banner ok" id="config-saved" hidden data-i18n="settings.saved"></div>
+
+        <div class="card">
+          <h2 data-i18n="settings.trigger"></h2>
+          <div class="field">
+            <label data-i18n="settings.shortcut"></label>
+            <div class="row">
+              <button class="hotkey-box" id="hotkey-box">ctrl+alt+d</button>
+              <button class="btn ghost small" id="hotkey-record"
+                      data-i18n="settings.change"></button>
+            </div>
+            <p class="help" data-i18n="settings.shortcut_help"></p>
+          </div>
+
+          <div class="field">
+            <label data-i18n="settings.mode"></label>
+            <div class="choices" id="mode-choices">
+              <button class="choice" data-value="hold">
+                <strong data-i18n="settings.hold"></strong>
+                <span data-i18n="settings.hold_help"></span>
+              </button>
+              <button class="choice" data-value="toggle">
+                <strong data-i18n="settings.toggle"></strong>
+                <span data-i18n="settings.toggle_help"></span>
+              </button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="max_dictation_s" data-i18n="settings.max_dictation"></label>
+            <input type="number" id="max_dictation_s" min="10" step="10">
+            <p class="help" data-i18n="settings.max_dictation_help"></p>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 data-i18n="settings.transcription"></h2>
+          <div class="field">
+            <label for="backend" data-i18n="settings.engine"></label>
+            <select id="backend">
+              <option value="parakeet" data-i18n="settings.engine_parakeet"></option>
+              <option value="whisper" data-i18n="settings.engine_whisper"></option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="language" data-i18n="settings.language"></label>
+            <select id="language">
+              <option value="fr">Français</option>
+              <option value="en">English</option>
+              <option value="es">Español</option>
+              <option value="de">Deutsch</option>
+              <option value="it">Italiano</option>
+              <option value="pt">Português</option>
+              <option value="nl">Nederlands</option>
+            </select>
+            <p class="help" data-i18n="settings.language_help"></p>
+          </div>
+          <div class="field">
+            <label for="input_device" data-i18n="settings.microphone"></label>
+            <select id="input_device"></select>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 data-i18n="settings.corrections"></h2>
+          <p class="help" data-i18n="settings.corrections_help"></p>
+          <div id="replacements"></div>
+          <button class="btn ghost small" id="add-replacement"
+                  data-i18n="settings.add_correction"></button>
+        </div>
+
+        <div class="card">
+          <h2 data-i18n="settings.behaviour"></h2>
+          <div class="field">
+            <label for="ui_language" data-i18n="settings.ui_language"></label>
+            <select id="ui_language">
+              <option value="en">English</option>
+              <option value="fr">Français</option>
+              <option value="auto" data-i18n="settings.ui_auto"></option>
+            </select>
+            <p class="help" data-i18n="settings.ui_language_help"></p>
+          </div>
+          <div class="field toggle-row">
+            <div>
+              <label for="overlay" data-i18n="settings.overlay"></label>
+              <p class="help" data-i18n="settings.overlay_help"></p>
+            </div>
+            <input type="checkbox" id="overlay" class="switch">
+          </div>
+          <div class="field toggle-row">
+            <div>
+              <label for="startup" data-i18n="settings.startup"></label>
+              <p class="help" data-i18n="settings.startup_help"></p>
+            </div>
+            <input type="checkbox" id="startup" class="switch">
+          </div>
+          <div class="field">
+            <label for="paste_mode" data-i18n="settings.paste_mode"></label>
+            <select id="paste_mode">
+              <option value="clipboard" data-i18n="settings.paste_clipboard"></option>
+              <option value="type" data-i18n="settings.paste_type"></option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="history_size" data-i18n="settings.history_size"></label>
+            <input type="number" id="history_size" min="0" step="10">
+            <p class="help" data-i18n="settings.history_size_help"></p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ---------------------------------------------- Statistiques -->
+      <section class="page" id="page-usage">
+        <header class="page-head">
+          <div>
+            <h1 data-i18n="usage.title"></h1>
+            <p class="sub" data-i18n="usage.sub"></p>
+          </div>
+        </header>
+
+        <div class="empty" id="usage-empty" hidden>
+          <p data-i18n="usage.empty"></p>
+        </div>
+
+        <div id="usage-body">
+          <div class="stats">
+            <div class="stat">
+              <span class="stat-label" data-i18n="usage.wpm"></span>
+              <div class="gauge">
+                <div class="gauge-arc" id="wpm-arc"></div>
+                <div class="gauge-text">
+                  <strong id="wpm-value">—</strong>
+                  <span data-i18n="usage.median"></span>
+                </div>
+              </div>
+            </div>
+            <div class="stat">
+              <span class="stat-value" id="u-words">—</span>
+              <span class="stat-label" data-i18n="usage.words"></span>
+              <p class="stat-note" id="u-words-note"></p>
+            </div>
+            <div class="stat">
+              <span class="stat-value" id="u-streak">—</span>
+              <span class="stat-label" data-i18n="usage.streak"></span>
+              <p class="stat-note" id="u-streak-note"></p>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 data-i18n="usage.regularity"></h2>
+            <div class="calendar" id="calendar"></div>
+            <div class="cal-legend">
+              <span data-i18n="usage.less"></span>
+              <span class="cal-day"></span>
+              <span class="cal-day l1"></span>
+              <span class="cal-day l2"></span>
+              <span class="cal-day l3"></span>
+              <span class="cal-day l4"></span>
+              <span data-i18n="usage.more"></span>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 data-i18n="usage.where"></h2>
+            <div class="bars" id="apps"></div>
+            <p class="help" id="apps-help" data-i18n="usage.where_help" hidden></p>
+          </div>
+
+          <div class="card">
+            <h2 data-i18n="usage.when"></h2>
+            <div class="hours" id="hours"></div>
+            <div class="hour-axis">
+              <span>00</span><span>06</span><span>12</span>
+              <span>18</span><span>23</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- -------------------------------------------------- Ma voix -->
+      <section class="page" id="page-voix">
+        <header class="page-head">
+          <div>
+            <h1 data-i18n="voice.title"></h1>
+            <p class="sub" data-i18n="voice.sub"></p>
+          </div>
+        </header>
+
+        <div class="empty" id="voice-empty" hidden>
+          <p data-i18n="voice.empty"></p>
+          <p class="sub" data-i18n="voice.empty_sub"></p>
+        </div>
+
+        <div id="voice-body">
+          <div class="card">
+            <h2 data-i18n="voice.portrait"></h2>
+            <p class="portrait" id="portrait"></p>
+          </div>
+
+          <div class="traits" id="traits"></div>
+
+          <div class="duo">
+            <div class="card">
+              <h2 data-i18n="voice.catchphrase"></h2>
+              <p class="quote" id="catchphrase"></p>
+            </div>
+            <div class="card">
+              <h2 data-i18n="voice.peak"></h2>
+              <p class="quote" id="peak"></p>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 data-i18n="voice.words"></h2>
+            <div class="chips" id="top-words"></div>
+          </div>
+
+          <div class="card" id="fillers-card">
+            <h2 data-i18n="voice.fillers_title"></h2>
+            <div class="chips" id="fillers"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------------ État -->
+      <section class="page" id="page-etat">
+        <header class="page-head">
+          <div>
+            <h1 data-i18n="status.title"></h1>
+            <p class="sub" data-i18n="status.sub"></p>
+          </div>
+          <div class="row">
+            <button class="btn ghost" id="open-folder" data-i18n="status.open_folder"></button>
+            <button class="btn" id="restart-daemon" data-i18n="status.restart"></button>
+          </div>
+        </header>
+
+        <div class="banner error" id="status-warning" hidden></div>
+
+        <div class="health" id="health"></div>
+
+        <div class="card">
+          <div class="log-head">
+            <h2 data-i18n="status.log"></h2>
+            <button class="btn ghost small" id="open-log" data-i18n="status.open_log"></button>
+          </div>
+          <pre id="log"></pre>
+        </div>
+      </section>
+
+      <!-- -------------------------------------------------- À propos -->
+      <section class="page" id="page-apropos">
+        <header class="page-head">
+          <div><h1 data-i18n="about.title"></h1></div>
+        </header>
+        <div class="card prose">
+          <p data-i18n-html="about.p1"></p>
+          <p data-i18n-html="about.p2"></p>
+          <p data-i18n-html="about.p3"></p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>

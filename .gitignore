@@ -1,0 +1,19 @@
+# Configuration personnelle (vocabulaire, raccourcis, chemins)
+config.json
+
+# Tout ce qui a été dicté : ne doit jamais partir dans le dépôt
+history.jsonl
+
+# Sorties de test et bancs d'essai
+tmp/
+*.log
+*.wav
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
