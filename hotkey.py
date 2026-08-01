@@ -187,8 +187,10 @@ class HotkeyListener:
             self._ready.set()
             return
         # Minuterie de thread : les WM_TIMER arrivent dans cette boucle, donc
-        # la réinstallation se fait sur le thread qui possède le hook.
-        user32.SetTimer(None, _TIMER_ID, REFRESH_S * 1000, None)
+        # la réinstallation se fait sur le thread qui possède le hook. Avec
+        # hwnd nul, Windows ignore l'identifiant demandé et en attribue un :
+        # c'est la valeur de retour qu'il faudra détruire.
+        timer = user32.SetTimer(None, _TIMER_ID, REFRESH_S * 1000, None)
         self._ready.set()
 
         msg = wintypes.MSG()
@@ -204,6 +206,7 @@ class HotkeyListener:
                 user32.TranslateMessage(ctypes.byref(msg))
                 user32.DispatchMessageW(ctypes.byref(msg))
 
+        user32.KillTimer(None, timer)
         if self._hook:
             user32.UnhookWindowsHookEx(self._hook)
             self._hook = None
