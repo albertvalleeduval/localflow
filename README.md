@@ -10,6 +10,27 @@ leaving your machine.
 A personal alternative to Wispr Flow, with the same core requirement:
 perceived latency must stay under one second no matter how long you dictate.
 
+## Download
+
+**Ready to run, no Python needed** — grab `localflow-…-windows-x64.zip` from
+the [latest release](https://github.com/albertvalleeduval/localflow/releases/latest),
+extract it anywhere, and run `localflow.exe`. The dictation model (~2.5 GB)
+downloads automatically on first launch; once the tray icon's tooltip shows
+your hotkey, hold `Ctrl+Alt+D` and speak. Click the tray icon (or run
+`localflow-ui.exe`) to open the settings window — hotkey, language,
+microphone, history, statistics.
+
+> **SmartScreen note.** The binaries are not code-signed (certificates cost
+> money, this tool is free), so Windows warns on first run: click
+> *More info* → *Run anyway*. Healthy reflex to hesitate — this tool installs
+> a keyboard hook, which is what dictation requires but also what warrants
+> caution with downloaded binaries. If you'd rather not trust a zip, install
+> from source below: the code is short and readable, and the release zip is
+> built from it in public by [GitHub Actions](.github/workflows/release.yml).
+
+**From source** — see [Installation](#installation). Same tool, and `python
+app.py` follows the code as you change it.
+
 ## How it works
 
 Audio is not transcribed in one block at the end: it is split on silences

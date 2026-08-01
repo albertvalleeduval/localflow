@@ -10,6 +10,28 @@ aucun audio qui sort de la machine.
 Alternative personnelle à Wispr Flow, avec la même exigence : la latence
 perçue doit rester sous la seconde quelle que soit la durée dictée.
 
+## Télécharger
+
+**Prêt à l'emploi, sans Python** — récupérer `localflow-…-windows-x64.zip`
+dans la [dernière release](https://github.com/albertvalleeduval/localflow/releases/latest),
+l'extraire n'importe où, lancer `localflow.exe`. Le modèle (~2,5 Go) se
+télécharge tout seul au premier lancement ; dès que l'info-bulle de l'icône de
+notification affiche le raccourci, tenir `Ctrl+Alt+D` et parler. Un clic sur
+l'icône (ou `localflow-ui.exe`) ouvre la fenêtre — raccourci, langue, micro,
+historique, statistiques.
+
+> **Avertissement SmartScreen.** Les exécutables ne sont pas signés (un
+> certificat coûte cher, l'outil est gratuit) : Windows préviendra au premier
+> lancement — cliquer *Informations complémentaires* → *Exécuter quand même*.
+> Hésiter est un réflexe sain : l'outil installe un hook clavier, c'est ce que
+> la dictée exige, mais c'est aussi ce qui mérite de la prudence avec un
+> binaire téléchargé. Pour ne pas avoir à faire confiance à un zip,
+> l'installation depuis les sources ci-dessous fait la même chose — le code
+> est court et lisible, et le zip de release en est construit publiquement
+> par [GitHub Actions](.github/workflows/release.yml).
+
+**Depuis les sources** — voir [Installation](#installation).
+
 ## Comment ça marche
 
 L'audio n'est pas transcrit d'un bloc à la fin : il est découpé sur les
