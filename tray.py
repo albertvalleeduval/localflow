@@ -50,6 +50,15 @@ class Tray:
         if self._hwnd:
             win32gui.PostMessage(self._hwnd, win32con.WM_CLOSE, 0, 0)
 
+    def set_tooltip(self, text):
+        """Met à jour l'info-bulle : le raccourci qu'elle affiche peut
+        changer à chaud, sans réinstallation de l'icône."""
+        self.tooltip = text
+        if self._hwnd and self._icon is not None:
+            win32gui.Shell_NotifyIcon(win32gui.NIM_MODIFY, (
+                self._hwnd, 0, win32gui.NIF_TIP, WM_TRAY, self._icon,
+                self.tooltip))
+
     def notify(self, title, message):
         """Bulle d'information, pour signaler ce qui ne se voit pas."""
         if not self._hwnd or self._icon is None:

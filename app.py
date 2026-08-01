@@ -247,6 +247,9 @@ class LocalFlow:
             # Le menu est reconstruit à chaque clic droit : changer la langue
             # ici suffit, rien à réinstaller.
             self.tray.lang = i18n.resolve(new["ui_language"])
+            # `self.cfg` et non `new` : en cas de raccourci invalide plus
+            # haut, c'est l'ancien qui est resté en service.
+            self.tray.set_tooltip(f"localflow — {self.cfg['hotkey']}")
         if self.overlay is not None:
             self.overlay.set_lang(i18n.resolve(new["ui_language"]))
             self.overlay.enabled = new["overlay"]
