@@ -56,21 +56,27 @@ def daemon_processes():
     """
     import win32com.client
 
-    # En exécutable, le démon est un processus à part entière : son nom
-    # suffit. Depuis les sources, c'est un python parmi d'autres : on le
-    # reconnaît à sa ligne de commande.
+    # Dans les deux cas, le démon est reconnu par son chemin, pas par son
+    # seul nom : un localflow.exe d'une autre installation, ou un clone du
+    # dépôt dans un autre dossier, n'est pas notre démon — et le bouton
+    # « Redémarrer » ne doit surtout pas le tuer.
     if runtime.FROZEN:
         where = "Name = 'localflow.exe'"
+        ours = os.path.normcase(os.path.join(runtime.DATA_DIR, "localflow.exe"))
     else:
         where = "Name LIKE '%python%'"
+        ours = os.path.normcase(HERE)
     wmi = win32com.client.GetObject("winmgmts:")
     found = []
     for proc in wmi.ExecQuery(
-            "SELECT ProcessId, CommandLine, WorkingSetSize, CreationDate "
-            f"FROM Win32_Process WHERE {where}"):
-        line = proc.CommandLine or ""
-        if runtime.FROZEN or os.path.join("localflow", "app.py") in line \
-                or "app.py" in line and HERE in line:
+            "SELECT ProcessId, CommandLine, ExecutablePath, WorkingSetSize, "
+            f"CreationDate FROM Win32_Process WHERE {where}"):
+        if runtime.FROZEN:
+            keep = os.path.normcase(str(proc.ExecutablePath or "")) == ours
+        else:
+            line = os.path.normcase(proc.CommandLine or "")
+            keep = "app.py" in line and ours in line
+        if keep:
             found.append({
                 "pid": proc.ProcessId,
                 "memory_mb": round(int(proc.WorkingSetSize or 0) / (1024 ** 2)),
