@@ -252,11 +252,13 @@ class Api:
         latency = None
         # La latence n'est pas dans l'historique : elle ne concerne que le
         # diagnostic, elle vit dans le journal.
-        pattern = re.compile(r"latenc[yе]? ([\d.]+)s|latence ([\d.]+)s")
+        # [ye] couvre l'anglais du journal courant et le français des
+        # journaux antérieurs.
+        pattern = re.compile(r"latenc[ye] ([\d.]+)s")
         for line in reversed(self._log_lines()):
             match = pattern.search(line)
             if match:
-                latency = float(match.group(1) or match.group(2))
+                latency = float(match.group(1))
                 break
         return {
             "time": entry.get("time", ""),
