@@ -174,6 +174,16 @@ function fillSettings(cfg) {
     c.classList.toggle("selected", c.dataset.value === cfg.mode);
   });
 
+  // Le backend whisper n'est pas embarqué dans l'exécutable : l'option est
+  // retirée plutôt que de laisser choisir un moteur qui ne chargera jamais.
+  // Elle reste visible si la config l'utilise déjà (éditée à la main).
+  const whisperOption = document.querySelector('#backend option[value="whisper"]');
+  if (whisperOption) {
+    const unavailable = state.frozen && cfg.backend !== "whisper";
+    whisperOption.hidden = unavailable;
+    whisperOption.disabled = unavailable;
+  }
+
   $("backend").value = cfg.backend;
   $("language").value = cfg.language;
   $("ui_language").value = cfg.ui_language;

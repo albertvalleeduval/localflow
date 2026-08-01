@@ -232,7 +232,7 @@ affiche la config effective.
 |---|---|---|
 | `hotkey` | `ctrl+alt+d` | Raccourci de dictée : modificateurs (`ctrl`, `alt`, `shift`, `win`) puis une touche, séparés par `+`. La touche finale est consommée par localflow : elle ne parvient pas à l'application active, donc `ctrl+win` n'ouvre pas le menu Démarrer. |
 | `mode` | `hold` | `hold` : tenir la touche. `toggle` : un appui démarre, un appui arrête. |
-| `backend` | `parakeet` | `parakeet` (CPU, recommandé) ou `whisper` (faster-whisper). |
+| `backend` | `parakeet` | `parakeet` (CPU, recommandé) ou `whisper` (faster-whisper, installation depuis les sources uniquement). |
 | `model` | `null` | Nom du modèle ; `null` = défaut du backend. |
 | `language` | `en` | Langue forcée (réglez-la sur la vôtre — voir Installation). |
 | `replacements` | `{}` | Corrections appliquées au texte final, `{"motif": "remplacement"}`. |
@@ -250,6 +250,10 @@ affiche la config effective.
 
 - Windows uniquement (raccourci global, presse-papiers et injection sont
   spécifiques à la plateforme).
+- Le zip de release n'embarque que le moteur Parakeet. Le backend `whisper`
+  optionnel demande une installation depuis les sources plus
+  `pip install faster-whisper` — et n'est de toute façon pas recommandé sur
+  CPU (voir la section latence).
 - Si l'application cible tourne en administrateur, l'injection échoue
   silencieusement : c'est une protection Windows (UIPI), pas un bug.
 - Le mode `type` (frappe caractère par caractère) est un secours, pas un mode

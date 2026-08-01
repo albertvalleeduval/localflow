@@ -223,7 +223,7 @@ the effective configuration.
 |---|---|---|
 | `hotkey` | `ctrl+alt+d` | Dictation hotkey: modifiers (`ctrl`, `alt`, `shift`, `win`) then one key, separated by `+`. The final key is consumed by localflow: it never reaches the active application, so `ctrl+win` does not open the Start menu. |
 | `mode` | `hold` | `hold`: keep the key pressed. `toggle`: one press starts, one press stops. |
-| `backend` | `parakeet` | `parakeet` (CPU, recommended) or `whisper` (faster-whisper). |
+| `backend` | `parakeet` | `parakeet` (CPU, recommended) or `whisper` (faster-whisper, source install only). |
 | `model` | `null` | Model name; `null` = backend default. |
 | `language` | `en` | Forced language (set it to yours — see Installation). |
 | `replacements` | `{}` | Corrections applied to the final text, `{"pattern": "replacement"}`. |
@@ -240,6 +240,9 @@ the effective configuration.
 ## Known limits
 
 - Windows only (global hotkey, clipboard and injection are platform-specific).
+- The release zip ships the Parakeet engine only. The optional `whisper`
+  backend needs a source install plus `pip install faster-whisper` — and is
+  not recommended on CPU anyway (see the latency section).
 - If the target application runs as administrator, injection fails silently:
   that is a Windows protection (UIPI), not a bug.
 - The `type` mode (character-by-character typing) is a fallback, not a daily

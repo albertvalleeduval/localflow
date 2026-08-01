@@ -126,6 +126,9 @@ class Api:
             "config": cfg,
             "defaults": config.DEFAULTS,
             "advanced": list(ADVANCED),
+            # La page masque ce qui n'existe pas dans la distribution en
+            # exécutable (le backend whisper, non embarqué).
+            "frozen": runtime.FROZEN,
             "configError": error,
             "devices": self._devices(),
             "startup": os.path.exists(install_startup.shortcut_path()),
@@ -341,6 +344,13 @@ class Api:
             hotkey.parse(merged["hotkey"])
         except hotkey.HotkeyError as exc:
             return {"ok": False, "error": f"raccourci : {exc}"}
+        # faster-whisper n'est pas embarqué dans le build PyInstaller : écrit
+        # tel quel, ce réglage laisserait le démon sans moteur, avec pour seul
+        # indice une ligne de journal. Refusé avant écriture.
+        if runtime.FROZEN and merged["backend"] == "whisper":
+            return {"ok": False, "error":
+                    "The whisper backend is not bundled in the executable "
+                    "build. Install localflow from source to use it."}
 
         trimmed = {k: v for k, v in merged.items() if v != config.DEFAULTS[k]}
         try:
