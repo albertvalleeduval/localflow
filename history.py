@@ -15,8 +15,10 @@ jamais partir dans le dépôt public.
 """
 
 import json
+import msvcrt
 import os
 import threading
+from contextlib import contextmanager
 
 import runtime
 
@@ -30,9 +32,35 @@ class History:
         self.size = size
         self.path = path
         self.log = log or (lambda *a: None)
-        # Le thread de travail écrit, l'interface lit : un verrou suffit, les
-        # volumes en jeu se comptent en kilooctets.
         self._lock = threading.Lock()
+
+    @contextmanager
+    def _locked(self):
+        """Verrou de thread, doublé d'un verrou inter-processus.
+
+        Le démon écrit, la fenêtre lit et supprime — depuis deux processus.
+        Un `threading.Lock` seul laisserait une réécriture complète (delete,
+        _trim) croiser un ajout venu d'en face et perdre une dictée. Le verrou
+        vit dans un fichier à part : verrouiller `history.jsonl` lui-même
+        empêcherait de le réécrire.
+        """
+        with self._lock:
+            try:
+                guard = open(self.path + ".lock", "a")
+            except OSError:
+                # Dossier en lecture seule : au moins le verrou de thread.
+                yield
+                return
+            try:
+                guard.seek(0)
+                msvcrt.locking(guard.fileno(), msvcrt.LK_LOCK, 1)
+                try:
+                    yield
+                finally:
+                    guard.seek(0)
+                    msvcrt.locking(guard.fileno(), msvcrt.LK_UNLCK, 1)
+            finally:
+                guard.close()
 
     @property
     def enabled(self):
@@ -50,7 +78,7 @@ class History:
         if fixes:
             entry["fixes"] = fixes
         try:
-            with self._lock:
+            with self._locked():
                 with open(self.path, "a", encoding="utf-8") as f:
                     f.write(json.dumps(entry, ensure_ascii=False) + "\n")
                 self._trim()
@@ -64,7 +92,7 @@ class History:
         if not os.path.exists(self.path):
             return []
         out = []
-        with self._lock:
+        with self._locked():
             with open(self.path, "r", encoding="utf-8") as f:
                 for line in f:
                     line = line.strip()
@@ -77,9 +105,15 @@ class History:
         out.reverse()
         return out[:limit] if limit else out
 
-    def delete(self, index):
-        """Supprime la `index`-ième dictée en partant de la plus récente."""
-        with self._lock:
+    def delete(self, index, expected_text=None):
+        """Supprime la `index`-ième dictée en partant de la plus récente.
+
+        `expected_text` protège contre un décalage : une dictée ajoutée par
+        le démon entre l'affichage et le clic déplace tous les index. Si le
+        texte à cette position n'est pas celui attendu, la ligne visée est
+        retrouvée par son contenu — et rien n'est supprimé en cas de doute.
+        """
+        with self._locked():
             if not os.path.exists(self.path):
                 return False
             with open(self.path, "r", encoding="utf-8") as f:
@@ -87,15 +121,30 @@ class History:
             # `entries()` renvoie la liste inversée : l'entrée 0 est la
             # dernière ligne du fichier.
             pos = len(lines) - 1 - index
-            if not 0 <= pos < len(lines):
+            if expected_text is not None:
+                if not (0 <= pos < len(lines)) \
+                        or self._entry_text(lines[pos]) != expected_text:
+                    matches = [i for i, ln in enumerate(lines)
+                               if self._entry_text(ln) == expected_text]
+                    if len(matches) != 1:
+                        return False
+                    pos = matches[0]
+            elif not 0 <= pos < len(lines):
                 return False
             del lines[pos]
             with open(self.path, "w", encoding="utf-8") as f:
                 f.writelines(lines)
             return True
 
+    @staticmethod
+    def _entry_text(line):
+        try:
+            return json.loads(line).get("text")
+        except json.JSONDecodeError:
+            return None
+
     def clear(self):
-        with self._lock:
+        with self._locked():
             if os.path.exists(self.path):
                 os.remove(self.path)
 

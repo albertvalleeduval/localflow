@@ -139,7 +139,9 @@ function historyRow(entry) {
   remove.className = "icon-btn danger";
   remove.textContent = t("history.delete");
   remove.addEventListener("click", async () => {
-    await window.pywebview.api.delete_entry(entry.index);
+    // Le texte accompagne l'index : il identifie l'entrée même si une
+    // dictée est arrivée depuis l'affichage de la liste.
+    await window.pywebview.api.delete_entry(entry.index, entry.text);
     loadHistory();
   });
   actions.append(copy, remove);

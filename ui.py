@@ -318,8 +318,10 @@ class Api:
         except Exception as exc:                              # noqa: BLE001
             return {"ok": False, "error": str(exc)}
 
-    def delete_entry(self, index):
-        return {"ok": self._history.delete(int(index))}
+    def delete_entry(self, index, text=None):
+        # Le texte accompagne l'index : si une dictée est arrivée entre
+        # l'affichage et le clic, l'index seul viserait la mauvaise ligne.
+        return {"ok": self._history.delete(int(index), expected_text=text)}
 
     def clear_history(self):
         self._history.clear()

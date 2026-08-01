@@ -17,3 +17,6 @@ venv/
 *.egg-info/
 build/
 dist/
+
+# Verrou inter-processus de l'historique
+history.jsonl.lock
