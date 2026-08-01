@@ -31,14 +31,15 @@ import config
 import hotkey
 import i18n
 import install_startup
+import runtime
 from history import History
 from injector import set_clipboard_text
 import recorder
 import stats
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-WEB = os.path.join(HERE, "web")
-LOG_PATH = os.path.join(HERE, "localflow.log")
+HERE = runtime.ASSETS_DIR
+WEB = os.path.join(runtime.ASSETS_DIR, "web")
+LOG_PATH = os.path.join(runtime.DATA_DIR, "localflow.log")
 
 # Réglages exposés dans l'onglet Réglages. Le reste de config.py garde ses
 # valeurs par défaut et s'édite à la main : ce sont des boutons de réglage fin
@@ -55,13 +56,21 @@ def daemon_processes():
     """
     import win32com.client
 
+    # En exécutable, le démon est un processus à part entière : son nom
+    # suffit. Depuis les sources, c'est un python parmi d'autres : on le
+    # reconnaît à sa ligne de commande.
+    if runtime.FROZEN:
+        where = "Name = 'localflow.exe'"
+    else:
+        where = "Name LIKE '%python%'"
     wmi = win32com.client.GetObject("winmgmts:")
     found = []
     for proc in wmi.ExecQuery(
             "SELECT ProcessId, CommandLine, WorkingSetSize, CreationDate "
-            "FROM Win32_Process WHERE Name LIKE '%python%'"):
+            f"FROM Win32_Process WHERE {where}"):
         line = proc.CommandLine or ""
-        if os.path.join("localflow", "app.py") in line or "app.py" in line and HERE in line:
+        if runtime.FROZEN or os.path.join("localflow", "app.py") in line \
+                or "app.py" in line and HERE in line:
             found.append({
                 "pid": proc.ProcessId,
                 "memory_mb": round(int(proc.WorkingSetSize or 0) / (1024 ** 2)),
@@ -363,16 +372,16 @@ class Api:
             deadline = time.monotonic() + 5.0
             while daemon_pids() and time.monotonic() < deadline:
                 time.sleep(0.2)
-            exe = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
-            if not os.path.exists(exe):
-                exe = sys.executable
-            subprocess.Popen([exe, os.path.join(HERE, "app.py")], cwd=HERE)
+            subprocess.Popen(runtime.launch_command("app.py"),
+                             cwd=runtime.DATA_DIR)
             return {"ok": True}
         except Exception as exc:                              # noqa: BLE001
             return {"ok": False, "error": str(exc)}
 
     def open_folder(self):
-        os.startfile(HERE)
+        # Le dossier des fichiers de l'utilisateur : config, historique,
+        # journal. Depuis les sources c'est aussi celui du code.
+        os.startfile(runtime.DATA_DIR)
         return {"ok": True}
 
 

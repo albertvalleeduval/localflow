@@ -18,8 +18,9 @@ import json
 import os
 import threading
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-HISTORY_PATH = os.path.join(HERE, "history.jsonl")
+import runtime
+
+HISTORY_PATH = os.path.join(runtime.DATA_DIR, "history.jsonl")
 
 
 class History:

@@ -35,6 +35,7 @@ import winerror
 
 import config
 import i18n
+import runtime
 from engine import StreamingTranscriber
 from history import History
 from hotkey import HotkeyError, HotkeyListener
@@ -43,8 +44,7 @@ from overlay import Overlay
 from recorder import Recorder
 from tray import Tray
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-LOG_PATH = os.path.join(HERE, "localflow.log")
+LOG_PATH = os.path.join(runtime.DATA_DIR, "localflow.log")
 # Préfixe Local\ : un verrou par session utilisateur, voulu — le hook clavier
 # et le micro sont propres à la session, deux sessions peuvent cohabiter.
 MUTEX_NAME = "Local\\localflow-single-instance"
@@ -326,10 +326,7 @@ class LocalFlow:
                 # n'a pas le focus : la fenêtre existe quand même, on s'arrête.
                 pass
             return
-        exe = os.path.join(os.path.dirname(sys.executable), "pythonw.exe")
-        if not os.path.exists(exe):
-            exe = sys.executable
-        subprocess.Popen([exe, os.path.join(HERE, "ui.py")], cwd=HERE)
+        subprocess.Popen(runtime.launch_command("ui.py"), cwd=runtime.DATA_DIR)
 
     @staticmethod
     def _existing_window():

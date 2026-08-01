@@ -10,9 +10,10 @@ de contenir que les clés qui s'écartent du défaut.
 import json
 import os
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-CONFIG_PATH = os.path.join(HERE, "config.json")
-EXAMPLE_PATH = os.path.join(HERE, "config.example.json")
+import runtime
+
+CONFIG_PATH = os.path.join(runtime.DATA_DIR, "config.json")
+EXAMPLE_PATH = os.path.join(runtime.ASSETS_DIR, "config.example.json")
 
 DEFAULTS = {
     "hotkey": "ctrl+alt+d",

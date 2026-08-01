@@ -15,8 +15,9 @@ import sys
 
 import win32com.client
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-APP = os.path.join(HERE, "app.py")
+import runtime
+
+APP = os.path.join(runtime.ASSETS_DIR, "app.py")
 SHORTCUT_NAME = "localflow.lnk"
 
 
@@ -40,22 +41,27 @@ def pythonw():
 
 
 def install():
-    target = pythonw()
+    # En exécutable, le raccourci vise directement localflow.exe : pas
+    # d'interpréteur, pas d'arguments, et l'exe porte déjà son icône.
+    if runtime.FROZEN:
+        target, arguments = runtime.launch_command("app.py")[0], ""
+    else:
+        target, arguments = pythonw(), f'"{APP}"'
     path = shortcut_path()
     shell = win32com.client.Dispatch("WScript.Shell")
     link = shell.CreateShortcut(path)
     link.TargetPath = target
-    link.Arguments = f'"{APP}"'
-    # Répertoire de travail : le modèle, la config et le journal sont cherchés
-    # à côté du script, mais autant que le processus démarre au bon endroit.
-    link.WorkingDirectory = HERE
+    link.Arguments = arguments
+    # Répertoire de travail : la config et le journal sont cherchés à côté du
+    # script ou de l'exe, mais autant que le processus démarre au bon endroit.
+    link.WorkingDirectory = runtime.DATA_DIR
     link.Description = "localflow — dictée locale"
     link.IconLocation = f"{target},0"
     link.Save()
     print(f"Raccourci créé : {path}")
     print(f"  cible     : {target}")
-    print(f"  arguments : \"{APP}\"")
-    if os.path.basename(target).lower().startswith("python.exe"):
+    print(f"  arguments : {arguments}")
+    if not runtime.FROZEN and os.path.basename(target).lower().startswith("python.exe"):
         print("  Attention : pythonw.exe est introuvable à côté de l'interpréteur "
               "courant, une fenêtre de console s'ouvrira au démarrage.")
     return 0
