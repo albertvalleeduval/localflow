@@ -357,7 +357,7 @@ async function loadUsage() {
   if (empty) return;
 
   // La jauge sature à 200 mots/min : au-delà, c'est du texte lu, pas dicté.
-  $("wpm-arc").style.setProperty("fill", Math.min(u.wpm / 200, 1) * 0.5 + "turn");
+  $("wpm-arc").style.setProperty("--fill", Math.min(u.wpm / 200, 1) * 0.5 + "turn");
   $("wpm-value").textContent = u.wpm;
 
   $("u-words").textContent = localeNumber(u.words);
