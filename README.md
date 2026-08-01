@@ -14,8 +14,8 @@ perceived latency must stay under one second no matter how long you dictate.
 
 **Ready to run, no Python needed** — grab `localflow-…-windows-x64.zip` from
 the [latest release](https://github.com/albertvalleeduval/localflow/releases/latest),
-extract it anywhere, and run `localflow.exe`. The dictation model (~2.5 GB)
-downloads automatically on first launch; once the tray icon's tooltip shows
+extract it anywhere (~140 MB unpacked), and run `localflow.exe`. The dictation
+model (~2.5 GB) downloads automatically on first launch; once the tray icon's tooltip shows
 your hotkey, hold `Ctrl+Alt+D` and speak. Click the tray icon (or run
 `localflow-ui.exe`) to open the settings window — hotkey, language,
 microphone, history, statistics.

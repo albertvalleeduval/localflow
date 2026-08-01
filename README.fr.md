@@ -14,8 +14,8 @@ perçue doit rester sous la seconde quelle que soit la durée dictée.
 
 **Prêt à l'emploi, sans Python** — récupérer `localflow-…-windows-x64.zip`
 dans la [dernière release](https://github.com/albertvalleeduval/localflow/releases/latest),
-l'extraire n'importe où, lancer `localflow.exe`. Le modèle (~2,5 Go) se
-télécharge tout seul au premier lancement ; dès que l'info-bulle de l'icône de
+l'extraire n'importe où (~140 Mo décompressé), lancer `localflow.exe`. Le
+modèle (~2,5 Go) se télécharge tout seul au premier lancement ; dès que l'info-bulle de l'icône de
 notification affiche le raccourci, tenir `Ctrl+Alt+D` et parler. Un clic sur
 l'icône (ou `localflow-ui.exe`) ouvre la fenêtre — raccourci, langue, micro,
 historique, statistiques.
