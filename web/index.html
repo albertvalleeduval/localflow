@@ -34,6 +34,9 @@
       <button class="nav-item" data-page="reglages">
         <span class="nav-icon">⚙</span> <span data-i18n="nav.settings">Settings</span>
       </button>
+      <button class="nav-item" data-page="corrections">
+        <span class="nav-icon">⇄</span> <span data-i18n="nav.corrections">Corrections</span>
+      </button>
       <button class="nav-item" data-page="apropos">
         <span class="nav-icon">?</span> <span data-i18n="nav.about">About</span>
       </button>
@@ -142,14 +145,6 @@
         </div>
 
         <div class="card">
-          <h2 data-i18n="settings.corrections"></h2>
-          <p class="help" data-i18n="settings.corrections_help"></p>
-          <div id="replacements"></div>
-          <button class="btn ghost small" id="add-replacement"
-                  data-i18n="settings.add_correction"></button>
-        </div>
-
-        <div class="card">
           <h2 data-i18n="settings.behaviour"></h2>
           <div class="field">
             <label for="ui_language" data-i18n="settings.ui_language"></label>
@@ -186,6 +181,27 @@
             <input type="number" id="history_size" min="0" step="10">
             <p class="help" data-i18n="settings.history_size_help"></p>
           </div>
+        </div>
+      </section>
+
+      <!-- ----------------------------------------------- Corrections -->
+      <section class="page" id="page-corrections">
+        <header class="page-head">
+          <div>
+            <h1 data-i18n="corrections.title">Corrections</h1>
+            <p class="sub" data-i18n="corrections.sub"></p>
+          </div>
+          <div class="row">
+            <span class="autosave" id="corrections-state"></span>
+            <button class="btn" id="add-replacement"
+                    data-i18n="corrections.add"></button>
+          </div>
+        </header>
+
+        <div class="banner error" id="corrections-error" hidden></div>
+
+        <div class="card">
+          <div id="replacements"></div>
         </div>
       </section>
 

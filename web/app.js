@@ -76,6 +76,7 @@ function toast(message) {
 
 document.querySelectorAll(".nav-item").forEach((btn) => {
   btn.addEventListener("click", () => {
+    if ($("page-corrections").classList.contains("active")) saveCorrections();
     document.querySelectorAll(".nav-item").forEach((b) => b.classList.remove("active"));
     document.querySelectorAll(".page").forEach((p) => p.classList.remove("active"));
     btn.classList.add("active");
@@ -205,8 +206,6 @@ function fillSettings(cfg) {
   });
   select.value = cfg.input_device === null ? "" : String(cfg.input_device);
 
-  renderReplacements(cfg.replacements || {});
-
   const hint = $("hotkey-hint");
   hint.innerHTML = "";
   const key = document.createElement("kbd");
@@ -216,37 +215,6 @@ function fillSettings(cfg) {
               document.createTextNode(
                 t(cfg.mode === "hold" ? "state.hold" : "state.toggle")));
 }
-
-function renderReplacements(map) {
-  const host = $("replacements");
-  host.innerHTML = "";
-  Object.entries(map).forEach(([from, to]) => addReplacementRow(from, to));
-  if (!Object.keys(map).length) addReplacementRow("", "");
-}
-
-function addReplacementRow(from, to) {
-  // Champs construits en DOM et remplis par propriété : interpolées dans du
-  // HTML, les valeurs contenant un guillemet sortiraient de l'attribut et
-  // injecteraient du balisage.
-  const row = document.createElement("div");
-  row.className = "replacement";
-  const source = document.createElement("input");
-  source.type = "text";
-  source.placeholder = t("settings.heard");
-  source.value = from;
-  const target = document.createElement("input");
-  target.type = "text";
-  target.placeholder = t("settings.corrected_to");
-  target.value = to;
-  const remove = document.createElement("button");
-  remove.className = "icon-btn danger";
-  remove.textContent = "✕";
-  remove.addEventListener("click", () => row.remove());
-  row.append(source, target, remove);
-  $("replacements").appendChild(row);
-}
-
-$("add-replacement").addEventListener("click", () => addReplacementRow("", ""));
 
 document.querySelectorAll("#mode-choices .choice").forEach((choice) => {
   choice.addEventListener("click", () => {
@@ -311,12 +279,6 @@ function finishRecording(hotkey) {
 }
 
 $("save-config").addEventListener("click", async () => {
-  const map = {};
-  document.querySelectorAll("#replacements .replacement").forEach((row) => {
-    const [from, to] = row.querySelectorAll("input");
-    if (from.value.trim()) map[from.value.trim()] = to.value;
-  });
-
   const device = $("input_device").value;
   const cfg = Object.assign({}, draft, {
     backend: $("backend").value,
@@ -327,7 +289,6 @@ $("save-config").addEventListener("click", async () => {
     history_size: parseInt($("history_size").value, 10),
     max_dictation_s: parseFloat($("max_dictation_s").value),
     input_device: device === "" ? null : parseInt(device, 10),
-    replacements: map,
   });
 
   const res = await window.pywebview.api.save_config(cfg);
@@ -346,8 +307,115 @@ $("save-config").addEventListener("click", async () => {
   // laisser la fenêtre à moitié dans l'ancienne langue.
   await refreshState();
   fillSettings(state.config);
+  // Les libellés des corrections sont posés en JavaScript : ils ne suivent un
+  // changement de langue qu'en repeignant. Jamais pendant une saisie en cours.
+  if (correctionsTimer === null) renderCorrections(state.config.replacements || {});
   toast(t("settings.applied"));
 });
+
+// --------------------------------------------------------------- corrections
+//
+// Pas de bouton « Enregistrer » ici. Chaque frappe est poussée côté Python,
+// qui la garde en réserve sans toucher au disque ; l'écriture suit une
+// seconde après la dernière frappe. Si la fenêtre se ferme avant, Python
+// écrit ce qu'il tient encore (voir Api.flush_corrections dans ui.py) : ce
+// qui est tapé finit toujours dans config.json, sans qu'on ait rien à faire.
+
+let correctionsTimer = null;   // écriture différée en attente
+
+function renderCorrections(map) {
+  const host = $("replacements");
+  host.innerHTML = "";
+  Object.entries(map).forEach(([from, to]) => addCorrectionRow(from, to));
+  if (!Object.keys(map).length) addCorrectionRow("", "");
+}
+
+function addCorrectionRow(from, to, first) {
+  // Champs construits en DOM et remplis par propriété : interpolées dans du
+  // HTML, les valeurs contenant un guillemet sortiraient de l'attribut et
+  // injecteraient du balisage.
+  const row = document.createElement("div");
+  row.className = "replacement";
+  const source = document.createElement("input");
+  source.type = "text";
+  source.placeholder = t("corrections.heard");
+  source.value = from;
+  const target = document.createElement("input");
+  target.type = "text";
+  target.placeholder = t("corrections.corrected_to");
+  target.value = to;
+  [source, target].forEach((input) => {
+    input.addEventListener("input", touchCorrections);
+  });
+  const remove = document.createElement("button");
+  remove.className = "icon-btn danger";
+  remove.textContent = "\u2715";
+  remove.addEventListener("click", () => {
+    row.remove();
+    // Une liste vide n'offre plus rien à remplir : on rouvre une ligne.
+    if (!$("replacements").children.length) addCorrectionRow("", "");
+    touchCorrections();
+  });
+  row.append(source, target, remove);
+  // Une ligne ajoutée à la main s'ouvre en tête : la liste s'allonge avec le
+  // temps, et on ne va pas chercher au fond ce qu'on vient de créer.
+  const host = $("replacements");
+  if (first) host.prepend(row); else host.appendChild(row);
+  return row;
+}
+
+function collectCorrections() {
+  const map = {};
+  document.querySelectorAll("#replacements .replacement").forEach((row) => {
+    const [from, to] = row.querySelectorAll("input");
+    // Une ligne sans « entendu » est une ligne qu'on vient d'ajouter et
+    // qu'on n'a pas encore remplie : elle ne vaut pas une correction.
+    if (from.value.trim()) map[from.value.trim()] = to.value;
+  });
+  return map;
+}
+
+function touchCorrections() {
+  // La réserve côté Python part à chaque frappe : elle ne coûte rien et
+  // c'est elle qui sauve la mise si la fenêtre se ferme dans la seconde.
+  window.pywebview.api.stage_corrections(collectCorrections());
+  setCorrectionsState("corrections.saving");
+  clearTimeout(correctionsTimer);
+  correctionsTimer = setTimeout(saveCorrections, 1000);
+}
+
+async function saveCorrections() {
+  if (correctionsTimer === null) return;      // rien en attente
+  clearTimeout(correctionsTimer);
+  correctionsTimer = null;
+  const res = await window.pywebview.api.save_corrections(collectCorrections());
+  $("corrections-error").hidden = res.ok;
+  if (!res.ok) {
+    $("corrections-error").textContent = t("corrections.save_failed",
+                                           { error: res.error });
+    setCorrectionsState("");
+    return;
+  }
+  setCorrectionsState("corrections.saved");
+}
+
+function setCorrectionsState(key) {
+  const el = $("corrections-state");
+  el.textContent = key ? t(key) : "";
+  el.dataset.i18n = key;                      // suit un changement de langue
+  clearTimeout(el._timer);
+  if (key === "corrections.saved") {
+    el._timer = setTimeout(() => setCorrectionsState(""), 2000);
+  }
+}
+
+$("add-replacement").addEventListener("click", () => {
+  addCorrectionRow("", "", true).querySelector("input").focus();
+});
+
+// Quitter l'onglet ou la fenêtre n'attend pas la seconde : on écrit tout de
+// suite. Le filet côté Python reste là pour la fermeture brutale.
+window.addEventListener("blur", () => saveCorrections());
 
 // --------------------------------------------------------------- statistiques
 
@@ -668,6 +736,7 @@ $("open-folder").addEventListener("click", () => window.pywebview.api.open_folde
 window.addEventListener("pywebviewready", async () => {
   await refreshState();
   fillSettings(state.config);
+  renderCorrections(state.config.replacements || {});
   loadHistory();
   // Pas de loadStatus() ici : la table des processus se paie en centaines de
   // millisecondes, et l'onglet État se recharge de toute façon à son ouverture.

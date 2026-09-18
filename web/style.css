@@ -197,7 +197,15 @@ label { display: block; font-weight: 550; margin-bottom: 6px; }
 .choice:hover { border-color: #3a3a46; }
 .choice.selected { border-color: var(--accent); background: var(--accent-soft); }
 
-.replacement { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+.replacement { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
+.replacement input { flex: 1; }
+
+/* Témoin d'enregistrement : il remplace le bouton Enregistrer de
+   l'onglet Réglages, et se fait oublier dès qu'il a dit son mot. */
+.autosave {
+  flex: none; font-size: 12.5px; color: var(--muted);
+  white-space: nowrap;
+}
 
 .banner { padding: 10px 14px; border-radius: 9px; margin-bottom: 14px; font-size: 13px; }
 .banner.error { background: var(--accent-soft); color: #ff9c92; border: 1px solid rgba(255,92,77,0.3); }

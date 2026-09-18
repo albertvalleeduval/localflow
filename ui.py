@@ -102,6 +102,9 @@ class Api:
 
     def __init__(self):
         self._history = History(size=10 ** 9)   # lecture seule ici : ne rogne pas
+        # Corrections tapées mais pas encore écrites — voir stage_corrections.
+        self._staged = None
+        self._staged_lock = threading.Lock()
 
     # ------------------------------------------------------------------ état
 
@@ -344,6 +347,10 @@ class Api:
         merged = dict(config.DEFAULTS)
         merged.update({k: v for k, v in (incoming or {}).items()
                        if k in config.DEFAULTS})
+        # Les corrections ont leur propre onglet et leur propre écriture : la
+        # page des réglages ne les envoie plus, et le disque fait foi. Sans
+        # cette ligne, enregistrer les réglages les effacerait toutes.
+        merged["replacements"] = self._current_config()["replacements"]
         try:
             config._validate(merged)
         except config.ConfigError as exc:
@@ -361,7 +368,10 @@ class Api:
             return {"ok": False, "error":
                     "The whisper backend is not bundled in the executable "
                     "build. Install localflow from source to use it."}
+        return self._write_config(merged)
 
+    @staticmethod
+    def _write_config(merged):
         trimmed = {k: v for k, v in merged.items() if v != config.DEFAULTS[k]}
         try:
             with open(config.CONFIG_PATH, "w", encoding="utf-8") as f:
@@ -371,6 +381,80 @@ class Api:
             return {"ok": False, "error": str(exc)}
         # Le démon voit la date du fichier changer et se recharge seul.
         return {"ok": True}
+
+    @staticmethod
+    def _current_config():
+        try:
+            return config.load()
+        except config.ConfigError:
+            return dict(config.DEFAULTS)
+
+    # ----------------------------------------------------------- corrections
+    #
+    # L'onglet Corrections n'a pas de bouton « Enregistrer » : la page pousse
+    # ici chaque frappe (`stage_corrections`, rien sur le disque), puis
+    # demande l'écriture une seconde après la dernière (`save_corrections`).
+    # Ce qui reste en réserve part sur le disque à la fermeture de la fenêtre
+    # (`flush_corrections`, branché sur l'événement `closing`) : une
+    # correction tapée juste avant de fermer n'est jamais perdue.
+
+    def stage_corrections(self, mapping):
+        """Garde les corrections en mémoire, sans rien écrire."""
+        try:
+            cleaned = self._clean_corrections(mapping)
+        except ValueError as exc:
+            return {"ok": False, "error": str(exc)}
+        with self._staged_lock:
+            self._staged = cleaned
+        return {"ok": True}
+
+    def save_corrections(self, mapping):
+        """Écrit les corrections dans config.json, le reste intact."""
+        try:
+            cleaned = self._clean_corrections(mapping)
+        except ValueError as exc:
+            return {"ok": False, "error": str(exc)}
+        with self._staged_lock:
+            self._staged = None
+        return self._write_corrections(cleaned)
+
+    def flush_corrections(self):
+        """Écrit ce qui reste en réserve. Appelée à la fermeture."""
+        with self._staged_lock:
+            pending, self._staged = self._staged, None
+        if pending is None:
+            return {"ok": True, "written": False}
+        result = self._write_corrections(pending)
+        result["written"] = result["ok"]
+        return result
+
+    def _write_corrections(self, cleaned):
+        # La config est relue à chaque écriture : entre deux frappes, l'onglet
+        # Réglages a pu écrire le fichier, et sa version d'avant n'a pas à
+        # repasser par-dessus.
+        try:
+            current = config.load()
+        except config.ConfigError as exc:
+            # config.json illisible : repartir des défauts effacerait tous les
+            # réglages de l'utilisateur pour sauver deux corrections.
+            return {"ok": False, "error": str(exc)}
+        if current["replacements"] == cleaned:
+            return {"ok": True}
+        current["replacements"] = cleaned
+        return self._write_config(current)
+
+    @staticmethod
+    def _clean_corrections(mapping):
+        if not isinstance(mapping, dict):
+            raise ValueError("corrections : objet attendu.")
+        cleaned = {}
+        for pattern, target in mapping.items():
+            if not isinstance(pattern, str) or not isinstance(target, str):
+                raise ValueError("corrections : motifs et remplacements "
+                                 "doivent être des chaînes.")
+            if pattern.strip():
+                cleaned[pattern.strip()] = target
+        return cleaned
 
     def set_startup(self, enabled):
         try:
@@ -477,15 +561,23 @@ def main():
         pass
 
     width, height = window_size()
-    webview.create_window(
+    api = Api()
+    window = webview.create_window(
         "localflow",
         os.path.join(WEB, "index.html"),
-        js_api=Api(),
+        js_api=api,
         width=width,
         height=height,
         min_size=(760, 520),
         background_color="#141418",
     )
+    # Les corrections tapées à la dernière seconde partent sur le disque avant
+    # que la fenêtre ne disparaisse. `closing` est appelé dans le fil de
+    # l'interface et attend le retour du gestionnaire : l'écriture a bien lieu
+    # avant la fermeture, et rien n'est demandé à la page — tout ce qui a été
+    # tapé est déjà côté Python.
+    window.events.closing += api.flush_corrections
+
     # La fenêtre n'existe qu'une fois la boucle lancée : l'icône se pose donc
     # depuis un fil d'attente, pas avant.
     threading.Thread(target=set_window_icon, daemon=True).start()
