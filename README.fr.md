@@ -122,13 +122,25 @@ celle de localflow à côté de l'horloge pour la garder visible.
 python ui.py
 ```
 
-Cinq onglets. **Historique** : toutes les dictées, recherche, copie en un
+Six onglets. **Historique** : toutes les dictées, recherche, copie en un
 clic. Le texte y est écrit *avant* d'être injecté, donc une dictée partie dans
 la mauvaise fenêtre reste récupérable. **Réglages** : raccourci capturé en
-appuyant sur les touches, mode, langue, micro, corrections, démarrage
-automatique. **Statistiques** : débit, volume, régularité jour par jour,
+appuyant sur les touches, mode, langue, micro, démarrage automatique.
+**Corrections** : les noms propres que la dictée écorche, un onglet à part
+parce qu'on y revient souvent et sans rien à enregistrer à la main (voir
+plus bas). **Statistiques** : débit, volume, régularité jour par jour,
 applications et heures. **Ma voix** : portrait de style, tournure récurrente,
 mots favoris. **État** : relevé de santé, journal, redémarrage du démon.
+
+L'onglet Corrections n'a pas de bouton « Enregistrer ». Y arriver ouvre déjà
+une ligne vierge, curseur dedans : on vient y écrire une correction, pas
+regarder la liste. Chaque frappe est poussée côté Python, qui la garde en
+mémoire sans toucher au disque, et l'écriture suit une seconde après la
+dernière frappe — ou tout de suite si l'on change d'onglet ou de fenêtre. Ce
+qui reste en réserve part dans `config.json` à la fermeture de la fenêtre,
+depuis le gestionnaire de l'événement `closing` : rien n'est demandé à la
+page, tout ce qui a été tapé est déjà côté Python, et une correction ajoutée
+juste avant de fermer arrive quand même au démon.
 
 L'onglet État répond à une seule question — « est-ce que ça marche ? ». Une
 ligne par chose à vérifier : service en marche et depuis combien de temps,

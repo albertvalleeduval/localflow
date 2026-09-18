@@ -118,13 +118,25 @@ drag the localflow icon next to the clock to keep it visible.
 python ui.py
 ```
 
-Five tabs. **History**: every dictation, search, one-click copy. Text is
+Six tabs. **History**: every dictation, search, one-click copy. Text is
 written there *before* being injected, so a dictation that landed in the wrong
 window is always recoverable. **Settings**: hotkey captured by pressing the
-keys, mode, language, microphone, corrections, launch at startup.
+keys, mode, language, microphone, launch at startup. **Corrections**: the
+proper nouns the dictation keeps mangling, a tab of its own because you come
+back to it often and never have to save anything by hand (see below).
 **Statistics**: throughput, volume, day-by-day regularity, applications and
 hours. **My voice**: style portrait, recurring turn of phrase, favorite words.
 **Status**: health check, log, daemon restart.
+
+The Corrections tab has no Save button. Opening it already opens a blank
+line with the cursor in it: you came to write a correction, not to look at
+the list. Every keystroke is pushed to the Python side, which keeps it in
+memory without touching the disk, and the write follows one second after the
+last keystroke — or right away if you switch tabs or windows. Whatever is
+still held in memory is written to `config.json` when the window closes, from
+the `closing` event handler: nothing is asked of the page, everything typed is
+already on the Python side, so a correction added just before closing still
+reaches the daemon.
 
 The Status tab answers a single question — "is it working?". One line per
 thing to check: service running and for how long, model loaded or not, memory
