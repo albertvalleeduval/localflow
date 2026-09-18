@@ -85,6 +85,7 @@ document.querySelectorAll(".nav-item").forEach((btn) => {
     if (btn.dataset.page === "historique") loadHistory();
     if (btn.dataset.page === "usage") loadUsage();
     if (btn.dataset.page === "voix") loadVoice();
+    if (btn.dataset.page === "corrections") openCorrections();
   });
 });
 
@@ -412,6 +413,19 @@ function setCorrectionsState(key) {
 $("add-replacement").addEventListener("click", () => {
   addCorrectionRow("", "", true).querySelector("input").focus();
 });
+
+// Arriver sur l'onglet, c'est déjà vouloir écrire une correction : la ligne
+// vierge est ouverte et le curseur posé dans « entendu ». Le bouton d'ajout
+// ne sert plus qu'à la suivante, une fois la première écrite.
+function openCorrections() {
+  // Les lignes restées vides d'une visite précédente s'en vont : sans ça,
+  // elles s'empileraient en tête à chaque passage.
+  document.querySelectorAll("#replacements .replacement").forEach((row) => {
+    const [from, to] = row.querySelectorAll("input");
+    if (!from.value && !to.value) row.remove();
+  });
+  addCorrectionRow("", "", true).querySelector("input").focus();
+}
 
 // Quitter l'onglet ou la fenêtre n'attend pas la seconde : on écrit tout de
 // suite. Le filet côté Python reste là pour la fermeture brutale.
