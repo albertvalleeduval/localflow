@@ -15,7 +15,7 @@
   "state.toggle": "toggle",
 
   "history.title": "History",
-  "history.sub": "Every dictation is saved before it is typed, so nothing is lost if the text lands in the wrong window.",
+  "history.sub": "Every dictation is saved before it is typed, so nothing is lost if the text lands in the wrong window. The text is erased after a few days; your stats keep counting it.",
   "history.clear": "Clear all",
   "history.search": "Search your dictations…",
   "history.copy": "Copy",
@@ -27,8 +27,8 @@
   "history.no_result": "no match",
   "history.copied": "Copied to the clipboard",
   "history.copy_failed": "Could not copy: {error}",
-  "history.cleared": "History cleared",
-  "history.confirm_clear": "Clear the whole dictation history?",
+  "history.cleared": "Dictation text erased, stats kept",
+  "history.confirm_clear": "Erase the text of every dictation? Your stats are kept.",
   "history.word_one": "word",
   "history.word_many": "words",
 
@@ -68,6 +68,8 @@
   "settings.paste_type": "Type character by character",
   "settings.history_size": "Dictations kept in history",
   "settings.history_size_help": "0 turns the history off.",
+  "settings.history_days": "Days the dictation text is kept",
+  "settings.history_days_help": "Older text is erased; the dictation still counts in your stats. 0 keeps it with no time limit.",
   "settings.ui_language": "Interface language",
   "settings.ui_language_help": "The language of this window. Independent from the language you dictate in.",
   "settings.ui_auto": "Follow Windows",

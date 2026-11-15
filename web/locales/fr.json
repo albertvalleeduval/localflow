@@ -15,7 +15,7 @@
   "state.toggle": "bascule",
 
   "history.title": "Historique",
-  "history.sub": "Chaque dictée est enregistrée avant d'être écrite, donc rien n'est perdu si le texte part dans la mauvaise fenêtre.",
+  "history.sub": "Chaque dictée est enregistrée avant d'être écrite, donc rien n'est perdu si le texte part dans la mauvaise fenêtre. Le texte est effacé au bout de quelques jours ; les statistiques continuent de le compter.",
   "history.clear": "Tout effacer",
   "history.search": "Rechercher dans les dictées…",
   "history.copy": "Copier",
@@ -27,8 +27,8 @@
   "history.no_result": "aucun résultat",
   "history.copied": "Copié dans le presse-papiers",
   "history.copy_failed": "Copie impossible : {error}",
-  "history.cleared": "Historique effacé",
-  "history.confirm_clear": "Effacer tout l'historique des dictées ?",
+  "history.cleared": "Texte des dictées effacé, statistiques conservées",
+  "history.confirm_clear": "Effacer le texte de toutes les dictées ? Les statistiques sont conservées.",
   "history.word_one": "mot",
   "history.word_many": "mots",
 
@@ -68,6 +68,8 @@
   "settings.paste_type": "Frappe caractère par caractère",
   "settings.history_size": "Dictées conservées dans l'historique",
   "settings.history_size_help": "0 désactive l'historique.",
+  "settings.history_days": "Jours de conservation du texte",
+  "settings.history_days_help": "Au-delà, le texte est effacé mais la dictée compte toujours dans les statistiques. 0 = sans limite de durée.",
   "settings.ui_language": "Langue de l'interface",
   "settings.ui_language_help": "La langue de cette fenêtre. Indépendante de la langue que tu dictes.",
   "settings.ui_auto": "Suivre Windows",

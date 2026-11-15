@@ -194,6 +194,7 @@ function fillSettings(cfg) {
   $("paste_mode").value = cfg.paste_mode;
   $("overlay").checked = cfg.overlay;
   $("history_size").value = cfg.history_size;
+  $("history_days").value = cfg.history_days;
   $("max_dictation_s").value = cfg.max_dictation_s;
   $("startup").checked = state.startup;
 
@@ -288,6 +289,7 @@ $("save-config").addEventListener("click", async () => {
     paste_mode: $("paste_mode").value,
     overlay: $("overlay").checked,
     history_size: parseInt($("history_size").value, 10),
+    history_days: parseInt($("history_days").value, 10),
     max_dictation_s: parseFloat($("max_dictation_s").value),
     input_device: device === "" ? null : parseInt(device, 10),
   });
