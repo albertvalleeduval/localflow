@@ -32,6 +32,10 @@ DEFAULTS = {
     "input_device": None,        # None = périphérique d'entrée par défaut
     "overlay": True,             # pastille d'état pendant la dictée
     "history_size": 200,         # dictées conservées ; 0 = pas d'historique
+    # Jours pendant lesquels le texte d'une dictée reste lisible. Au-delà il
+    # est effacé, mais la dictée continue de compter dans les statistiques.
+    # 0 = texte gardé sans limite de durée.
+    "history_days": 7,
     # Langue de l'interface — à ne pas confondre avec `language` ci-dessus,
     # qui est la langue que l'on dicte. Anglais par défaut : le dépôt est
     # destiné à être public. "auto" suit la langue d'affichage de Windows.
@@ -105,6 +109,9 @@ def _validate(cfg):
     size = cfg["history_size"]
     if not isinstance(size, int) or isinstance(size, bool) or size < 0:
         raise ConfigError("history_size doit être un entier positif ou nul.")
+    days = cfg["history_days"]
+    if not isinstance(days, int) or isinstance(days, bool) or days < 0:
+        raise ConfigError("history_days doit être un entier positif ou nul.")
     delay = cfg["type_delay_ms"]
     if not isinstance(delay, (int, float)) or isinstance(delay, bool) or delay < 0:
         raise ConfigError("type_delay_ms doit être un nombre positif ou nul.")

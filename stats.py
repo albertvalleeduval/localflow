@@ -19,6 +19,7 @@ from collections import Counter
 from datetime import date, datetime, timedelta
 
 import i18n
+from history import word_count
 
 # Les données ci-dessous suivent la langue DICTÉE, pas celle de l'interface :
 # quelqu'un qui dicte en français dans une interface anglaise a besoin de la
@@ -136,8 +137,9 @@ def usage(entries, days=182):
     speeds = []
 
     for entry in entries:
-        text = entry.get("text", "")
-        words = len(text.split())
+        # Le texte des dictées anciennes est effacé : le décompte de mots,
+        # lui, est gardé sur la ligne.
+        words = word_count(entry)
         seconds = entry.get("seconds", 0) or 0
         total_words += words
         total_seconds += seconds

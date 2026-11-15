@@ -15,5 +15,6 @@
   "input_device": null,
   "overlay": true,
   "history_size": 200,
+  "history_days": 7,
   "ui_language": "en"
 }

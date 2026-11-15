@@ -10,6 +10,11 @@ Format : un objet JSON par ligne dans `history.jsonl`, le plus récent en
 dernier. Volontairement lisible et sans base de données : le fichier s'ouvre
 dans n'importe quel éditeur si l'outil ne démarre plus.
 
+Le texte ne sert qu'à cette seconde chance : passé `days` jours (ou au-delà
+des `size` dictées les plus récentes), il est effacé de la ligne, mais la
+ligne reste — date, durée, nombre de mots, application. Les compteurs et les
+statistiques couvrent donc tout l'usage, sans garder ce qui a été dit.
+
 `history.jsonl` contient tout ce qui a été dicté : il est gitignoré et ne doit
 jamais partir dans le dépôt public.
 """
@@ -19,17 +24,28 @@ import msvcrt
 import os
 import threading
 from contextlib import contextmanager
+from datetime import datetime, timedelta
 
 import runtime
 
 HISTORY_PATH = os.path.join(runtime.DATA_DIR, "history.jsonl")
 
 
-class History:
-    """Journal des dictées, borné aux `size` dernières entrées."""
+def word_count(entry):
+    """Mots d'une dictée, que son texte ait été effacé ou non."""
+    if "words" in entry:
+        return entry["words"]
+    return len(entry.get("text", "").split())
 
-    def __init__(self, size=200, path=HISTORY_PATH, log=None):
+
+class History:
+    """Journal des dictées. Le texte n'est gardé que pour les `size` plus
+    récentes et sur `days` jours (0 = sans limite de durée) ; au-delà, seules
+    les métadonnées restent."""
+
+    def __init__(self, size=200, days=7, path=HISTORY_PATH, log=None):
         self.size = size
+        self.days = days
         self.path = path
         self.log = log or (lambda *a: None)
         self._lock = threading.Lock()
@@ -40,7 +56,7 @@ class History:
 
         Le démon écrit, la fenêtre lit et supprime — depuis deux processus.
         Un `threading.Lock` seul laisserait une réécriture complète (delete,
-        _trim) croiser un ajout venu d'en face et perdre une dictée. Le verrou
+        _prune) croiser un ajout venu d'en face et perdre une dictée. Le verrou
         vit dans un fichier à part : verrouiller `history.jsonl` lui-même
         empêcherait de le réécrire.
         """
@@ -70,7 +86,8 @@ class History:
         """Range une dictée. `app` et `fixes` alimentent les statistiques."""
         if not self.enabled or not text:
             return
-        entry = {"time": stamp, "seconds": round(seconds, 1), "text": text}
+        entry = {"time": stamp, "seconds": round(seconds, 1),
+                 "words": len(text.split()), "text": text}
         # Champs omis quand ils n'apprennent rien : le fichier reste lisible
         # à l'œil, et les entrées d'avant leur existence restent valides.
         if app:
@@ -81,7 +98,7 @@ class History:
             with self._locked():
                 with open(self.path, "a", encoding="utf-8") as f:
                     f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-                self._trim()
+                self._prune()
         except OSError as exc:
             # Une dictée réussie ne doit pas échouer parce que l'historique
             # est en lecture seule ou le disque plein.
@@ -106,7 +123,8 @@ class History:
         return out[:limit] if limit else out
 
     def delete(self, index, expected_text=None):
-        """Supprime la `index`-ième dictée en partant de la plus récente.
+        """Efface le texte de la `index`-ième dictée en partant de la plus
+        récente. La ligne reste : elle compte toujours dans les statistiques.
 
         `expected_text` protège contre un décalage : une dictée ajoutée par
         le démon entre l'affichage et le clic déplace tous les index. Si le
@@ -131,7 +149,7 @@ class History:
                     pos = matches[0]
             elif not 0 <= pos < len(lines):
                 return False
-            del lines[pos]
+            lines[pos] = self._stripped(lines[pos])
             with open(self.path, "w", encoding="utf-8") as f:
                 f.writelines(lines)
             return True
@@ -143,20 +161,67 @@ class History:
         except json.JSONDecodeError:
             return None
 
+    @staticmethod
+    def _stripped(line):
+        """La ligne sans son texte, le nombre de mots gardé à sa place."""
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            return line
+        if "text" not in entry:
+            return line
+        entry["words"] = word_count(entry)
+        del entry["text"]
+        return json.dumps(entry, ensure_ascii=False) + "\n"
+
     def clear(self):
+        """Efface le texte de toutes les dictées ; les statistiques restent."""
         with self._locked():
-            if os.path.exists(self.path):
-                os.remove(self.path)
+            self._prune(strip_all=True)
 
-    def _trim(self):
-        """Réécrit le fichier quand il dépasse la taille voulue.
+    def prune(self):
+        """Efface les textes expirés. Appelé par la fenêtre à l'affichage :
+        sans dictée pendant des jours, le démon n'aurait pas l'occasion de
+        le faire."""
+        try:
+            with self._locked():
+                self._prune()
+        except OSError as exc:
+            self.log(f"history not pruned: {exc}")
 
-        Appelé sous verrou, et seulement une fois le dépassement franchi : on
-        relit rarement, jamais à chaque dictée.
-        """
-        with open(self.path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-        if len(lines) <= self.size * 2:
+    def _prune(self, strip_all=False):
+        """Retire le texte des dictées trop anciennes ou au-delà des `size`
+        plus récentes. Appelé sous verrou ; ne réécrit le fichier que si une
+        ligne change."""
+        if not os.path.exists(self.path):
             return
-        with open(self.path, "w", encoding="utf-8") as f:
-            f.writelines(lines[-self.size:])
+        with open(self.path, "r", encoding="utf-8") as f:
+            lines = [ln if ln.endswith("\n") else ln + "\n"
+                     for ln in f if ln.strip()]
+        cutoff = ""
+        if self.days > 0:
+            cutoff = (datetime.now() - timedelta(days=self.days)) \
+                .strftime("%Y-%m-%d %H:%M:%S")
+        kept = 0
+        changed = False
+        # Du plus récent au plus ancien : les `size` premiers textes restent.
+        for i in range(len(lines) - 1, -1, -1):
+            line = lines[i]
+            if '"text"' not in line:
+                continue
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if "text" not in entry:
+                continue
+            expired = (strip_all or kept >= self.size
+                       or (cutoff and entry.get("time", "") < cutoff))
+            if expired:
+                lines[i] = self._stripped(line)
+                changed = True
+            else:
+                kept += 1
+        if changed:
+            with open(self.path, "w", encoding="utf-8") as f:
+                f.writelines(lines)

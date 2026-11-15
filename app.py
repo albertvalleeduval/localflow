@@ -113,7 +113,9 @@ class LocalFlow:
 
         self.engine = None
         self.recorder = None
-        self.history = History(size=cfg["history_size"], log=log)
+        self.history = History(size=cfg["history_size"],
+                               days=cfg["history_days"], log=log)
+        self.history.prune()
         self.injector = Injector(
             paste_mode=cfg["paste_mode"],
             replacements=cfg["replacements"],
@@ -253,7 +255,8 @@ class LocalFlow:
         if self.overlay is not None:
             self.overlay.set_lang(i18n.resolve(new["ui_language"]))
             self.overlay.enabled = new["overlay"]
-        self.history = History(size=new["history_size"], log=log)
+        self.history = History(size=new["history_size"],
+                               days=new["history_days"], log=log)
         self.injector = Injector(
             paste_mode=new["paste_mode"], replacements=new["replacements"],
             type_delay_ms=new["type_delay_ms"], log=log)

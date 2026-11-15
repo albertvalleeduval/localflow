@@ -32,7 +32,7 @@ import hotkey
 import i18n
 import install_startup
 import runtime
-from history import History
+from history import History, word_count
 from injector import set_clipboard_text
 import recorder
 import stats
@@ -160,7 +160,7 @@ class Api:
 
     def _stats(self):
         entries = self._history.entries()
-        words = sum(len(e.get("text", "").split()) for e in entries)
+        words = sum(word_count(e) for e in entries)
         seconds = sum(e.get("seconds", 0) for e in entries)
         return {
             "count": len(entries),
@@ -265,7 +265,7 @@ class Api:
                 break
         return {
             "time": entry.get("time", ""),
-            "words": len(entry.get("text", "").split()),
+            "words": word_count(entry),
             "seconds": entry.get("seconds", 0),
             "latency": latency,
         }
@@ -304,11 +304,20 @@ class Api:
 
     def get_history(self, query="", limit=300):
         needle = (query or "").lower()
+        # Les textes expirés sont effacés avant l'affichage : sans dictée
+        # depuis des jours, le démon n'a pas eu l'occasion de le faire.
+        try:
+            cfg = config.load()
+        except config.ConfigError:
+            cfg = dict(config.DEFAULTS)
+        History(size=cfg["history_size"], days=cfg["history_days"]).prune()
         out = []
         # `index` est la position dans la liste complète, pas dans la liste
         # filtrée : c'est elle que `delete_entry` attend.
         for index, entry in enumerate(self._history.entries()):
             text = entry.get("text", "")
+            if not text:
+                continue        # texte effacé : ne reste que dans les stats
             if needle and needle not in text.lower():
                 continue
             out.append({
