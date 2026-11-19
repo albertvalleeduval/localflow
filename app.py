@@ -140,6 +140,9 @@ class LocalFlow:
         # Numéro du dernier chargement demandé : deux enregistrements rapides
         # lancent deux chargements, seul le plus récent a le droit d'aboutir.
         self._load_gen = 0
+        # Bulle du dernier chargement raté (titre, texte), redonnée à chaque
+        # appui sur le raccourci tant qu'aucun moteur n'est chargé.
+        self._load_failure = None
 
     # ------------------------------------------------------------- démarrage
 
@@ -298,6 +301,7 @@ class LocalFlow:
             self._load_gen += 1
             gen = self._load_gen
             self.engine = None
+            self._load_failure = None
         threading.Thread(target=self._load_quietly, args=(gen,),
                          daemon=True).start()
 
@@ -319,9 +323,12 @@ class LocalFlow:
             # Sans elle, l'échec (réseau coupé au premier lancement, le plus
             # souvent) ne se voit que dans le journal.
             if isinstance(exc, GroqError):
-                self._notify("tray.groq_error_title", GROQ_MESSAGES[exc.kind])
+                self._load_failure = ("tray.groq_error_title",
+                                      GROQ_MESSAGES[exc.kind])
             else:
-                self._notify("tray.load_failed_title", "tray.load_failed")
+                self._load_failure = ("tray.load_failed_title",
+                                      "tray.load_failed")
+            self._notify(*self._load_failure)
         finally:
             slow.cancel()
 
@@ -437,6 +444,13 @@ class LocalFlow:
 
     def _request_start(self):
         if self.engine is None:
+            if self._load_failure is not None:
+                # Chargement raté (clé refusée…) : « chargement » serait faux,
+                # on redit plutôt pourquoi. La bulle part du thread de
+                # travail, le hook clavier ne doit pas attendre l'Explorateur.
+                log("no engine loaded, dictation ignored")
+                self._commands.put(("load_failed", ""))
+                return
             # Dictée demandée avant la fin de la chauffe : la pastille le dit,
             # sinon l'utilisateur parlerait dans le vide sans le savoir.
             self._set_state("loading")
@@ -469,6 +483,8 @@ class LocalFlow:
                     self._begin()
                 elif action == "stop":
                     self._finish(reason)
+                elif action == "load_failed" and self._load_failure:
+                    self._notify(*self._load_failure)
             except Exception as exc:                       # noqa: BLE001
                 # Le démon doit survivre à une dictée qui tourne mal.
                 log(f"error during dictation: {exc!r}")
@@ -504,15 +520,17 @@ class LocalFlow:
         self._limit.start()
         log("listening…")
 
-    def _report_engine_errors(self, engine):
+    def _report_engine_errors(self, engine, text):
         """Backend groq : un morceau non transcrit (clé refusée, quota,
         réseau) est signalé par une bulle. Jamais de repli vers un modèle
-        local — l'utilisateur doit savoir où part son audio."""
+        local — l'utilisateur doit savoir où part son audio. Le titre dit si
+        le reste de la dictée a tout de même été écrit."""
         errors = engine.errors
         if not errors:
             return
         log(f"groq: {len(errors)} chunk(s) not transcribed ({errors[0]})")
-        self._notify("tray.groq_error_title", GROQ_MESSAGES[errors[0].kind])
+        title = "tray.groq_partial_title" if text else "tray.groq_error_title"
+        self._notify(title, GROQ_MESSAGES[errors[0].kind])
 
     def _cancel_limit(self):
         if self._limit is not None:
@@ -534,7 +552,7 @@ class LocalFlow:
         t_release = time.perf_counter()
         text = engine.stop()
         latency = time.perf_counter() - t_release
-        self._report_engine_errors(engine)
+        self._report_engine_errors(engine, text)
         suffix = f" ({reason})" if reason and reason != "release" else ""
         if not text:
             self._set_state("hidden")

@@ -74,6 +74,7 @@ CATALOG = {
             "Le chargement du modèle a échoué. Vérifiez la connexion, "
             "puis ouvrez le journal.",
         "tray.groq_error_title": "Dictée non transcrite (Groq)",
+        "tray.groq_partial_title": "Dictée transcrite en partie (Groq)",
         "tray.groq_key":
             "Clé Groq absente ou refusée. Renseignez-la dans les réglages "
             "(ou groq_api_key dans config.json), ou repassez en moteur local.",
@@ -135,6 +136,7 @@ CATALOG = {
             "The model could not be loaded. Check your connection, "
             "then open the log.",
         "tray.groq_error_title": "Dictation not transcribed (Groq)",
+        "tray.groq_partial_title": "Dictation partly transcribed (Groq)",
         "tray.groq_key":
             "Groq API key missing or rejected. Set it in the settings (or "
             "groq_api_key in config.json), or switch back to a local engine.",
