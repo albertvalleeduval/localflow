@@ -58,6 +58,14 @@ def resolve_key(configured):
     return (configured or "").strip() or os.environ.get("GROQ_API_KEY", "").strip()
 
 
+def valid_key(key):
+    """Une clé ne peut contenir que de l'ASCII imprimable, sans espace : elle
+    part dans un en-tête HTTP. Un caractère invisible collé avec elle (espace
+    insécable, retour à la ligne) ferait échouer l'envoi avec une exception
+    qui recopie l'en-tête, clé comprise, jusque dans le journal."""
+    return all("!" <= c <= "~" for c in key)
+
+
 def to_wav(audio, sample_rate):
     """float32 [-1, 1] -> octets d'un WAV PCM 16 bits mono."""
     pcm = (np.clip(audio, -1.0, 1.0) * 32767).astype("<i2")
@@ -98,6 +106,8 @@ class GroqClient:
     def __init__(self, api_key, model, log=None):
         if not api_key:
             raise GroqError("key", "no API key (groq_api_key or GROQ_API_KEY)")
+        if not valid_key(api_key):
+            raise GroqError("key", "invalid characters in the API key")
         self.model = model
         self.log = log or (lambda *a: None)
         self._headers = {"Authorization": f"Bearer {api_key}",
@@ -116,6 +126,11 @@ class GroqClient:
         except urllib.error.HTTPError as exc:
             with exc:
                 return exc.code, exc.headers, exc.read()
+        except ValueError as exc:
+            # En-tête refusé par http.client : son message recopie la valeur,
+            # donc la clé. On n'en garde que le type, sans chaîner l'original.
+            raise GroqError("key", f"request header rejected "
+                                   f"({type(exc).__name__})") from None
 
     def check(self):
         """Vérifie la clé au chargement, par la liste des modèles : aucun audio

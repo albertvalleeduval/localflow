@@ -11,6 +11,7 @@ import json
 import os
 
 import runtime
+from groq_api import valid_key
 
 CONFIG_PATH = os.path.join(runtime.DATA_DIR, "config.json")
 EXAMPLE_PATH = os.path.join(runtime.ASSETS_DIR, "config.example.json")
@@ -86,6 +87,10 @@ def _validate(cfg):
         raise ConfigError(f"backend doit valoir {' ou '.join(BACKENDS)}.")
     if not isinstance(cfg["groq_api_key"], str):
         raise ConfigError("groq_api_key doit être une chaîne.")
+    if not valid_key(cfg["groq_api_key"]):
+        # Le message ne cite jamais la clé.
+        raise ConfigError("groq_api_key contient des caractères invalides "
+                          "(espace, retour à la ligne ou caractère non ASCII).")
     if cfg["groq_model"] not in GROQ_MODELS:
         raise ConfigError(f"groq_model doit valoir {' ou '.join(GROQ_MODELS)}.")
     if cfg["paste_mode"] not in PASTE_MODES:
