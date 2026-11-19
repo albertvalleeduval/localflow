@@ -18,11 +18,16 @@ EXAMPLE_PATH = os.path.join(runtime.ASSETS_DIR, "config.example.json")
 DEFAULTS = {
     "hotkey": "ctrl+alt+d",
     "mode": "hold",              # "hold" (maintien) ou "toggle" (bascule)
-    "backend": "parakeet",       # "parakeet" ou "whisper"
-    "model": None,               # None = modèle par défaut du backend
+    "backend": "parakeet",       # "parakeet", "whisper" (locaux) ou "groq" (en ligne)
+    "model": None,               # None = modèle par défaut du backend local
+    # Backend "groq" : l'audio part chez Groq pour y être transcrit. Clé vide =
+    # variable d'environnement GROQ_API_KEY. Elle ne vit que dans config.json,
+    # gitignoré, et n'est jamais affichée ni journalisée.
+    "groq_api_key": "",
+    "groq_model": "whisper-large-v3-turbo",
     "language": "en",
     "replacements": {},          # corrections de noms propres appliquées au texte
-    "vocabulary": "",            # backend whisper uniquement (initial_prompt)
+    "vocabulary": "",            # backends whisper et groq (amorce du modèle)
     "paste_mode": "clipboard",   # "clipboard" (Ctrl+V) ou "type" (frappe)
     "type_delay_ms": 10,         # cadence de la frappe de secours
     "min_chunk_s": 3.0,
@@ -43,7 +48,8 @@ DEFAULTS = {
 }
 
 MODES = ("hold", "toggle")
-BACKENDS = ("parakeet", "whisper")
+BACKENDS = ("parakeet", "whisper", "groq")
+GROQ_MODELS = ("whisper-large-v3-turbo", "whisper-large-v3")
 PASTE_MODES = ("clipboard", "type")
 UI_LANGUAGES = ("en", "fr", "auto")
 
@@ -78,6 +84,10 @@ def _validate(cfg):
         raise ConfigError(f"mode doit valoir {' ou '.join(MODES)}.")
     if cfg["backend"] not in BACKENDS:
         raise ConfigError(f"backend doit valoir {' ou '.join(BACKENDS)}.")
+    if not isinstance(cfg["groq_api_key"], str):
+        raise ConfigError("groq_api_key doit être une chaîne.")
+    if cfg["groq_model"] not in GROQ_MODELS:
+        raise ConfigError(f"groq_model doit valoir {' ou '.join(GROQ_MODELS)}.")
     if cfg["paste_mode"] not in PASTE_MODES:
         raise ConfigError(f"paste_mode doit valoir {' ou '.join(PASTE_MODES)}.")
     if cfg["ui_language"] not in UI_LANGUAGES:
@@ -130,4 +140,9 @@ if __name__ == "__main__":
     print(f"Configuration chargée depuis : {source}")
     for key in DEFAULTS:
         flag = "" if cfg[key] == DEFAULTS[key] else "  <- personnalisé"
-        print(f"  {key} = {cfg[key]!r}{flag}")
+        # La clé Groq n'est jamais affichée : seulement sa présence.
+        if key == "groq_api_key":
+            value = "(renseignée)" if cfg[key] else "''"
+        else:
+            value = repr(cfg[key])
+        print(f"  {key} = {value}{flag}")

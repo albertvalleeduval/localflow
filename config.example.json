@@ -3,6 +3,8 @@
   "mode": "hold",
   "backend": "parakeet",
   "model": null,
+  "groq_api_key": "",
+  "groq_model": "whisper-large-v3-turbo",
   "language": "en",
   "replacements": {},
   "vocabulary": "",
