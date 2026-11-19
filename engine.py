@@ -22,6 +22,17 @@ from groq_api import GroqClient, GroqError, resolve_key
 
 SAMPLE_RATE = 16000
 
+# Découpage propre au backend groq. L'API compte les requêtes (par minute et
+# par jour, quota partagé entre les applications d'un même compte) et facture
+# une durée minimale par requête (10 s à ce jour) : les morceaux de 3 à 12 s du
+# flux local coûteraient une requête toutes les quelques secondes, chacune
+# comptée plus que sa durée. Groq répond vite, on garde donc de gros
+# morceaux : une dictée de moins de 20 s part en une seule requête, au
+# relâchement ; au-delà, coupe sur le premier silence passé 20 s, et d'office
+# à 40 s pour que le dernier morceau, celui qu'on attend, reste court.
+GROQ_MIN_CHUNK_S = 20.0
+GROQ_MAX_CHUNK_S = 40.0
+
 # Marqueurs d'hallucination classiques de Whisper sur du silence.
 HALLUCINATIONS = (
     "sous-titr", "amara.org", "merci d'avoir regardé", "abonnez-vous",
@@ -44,6 +55,9 @@ class StreamingTranscriber:
         groq_model="whisper-large-v3-turbo",
     ):
         self.backend = backend
+        if backend == "groq":
+            min_chunk_s = max(min_chunk_s, GROQ_MIN_CHUNK_S)
+            max_chunk_s = max(max_chunk_s, GROQ_MAX_CHUNK_S)
         self.language = language
         self.vocabulary = vocabulary
         self.min_chunk = int(min_chunk_s * SAMPLE_RATE)
