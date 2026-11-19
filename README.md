@@ -113,7 +113,8 @@ then pick Groq in Settings > Engine and paste the key. Or by hand:
   fallback to a local model: if the key is rejected, the rate limit reached or
   the network down, the dictation is not transcribed and a notification says
   so. The key stays in `config.json` (git-ignored), is never logged, and is
-  never sent back to the settings window.
+  never sent back to the settings window; *Remove key* next to the field
+  deletes it.
 - **Free plan limits.** Groq's free plan caps requests per minute and per day,
   and audio per hour, for the whole organization (shared with your other
   apps), and bills each request as a minimum length of audio. See [Groq's rate

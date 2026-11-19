@@ -106,6 +106,7 @@ h2 { font-size: 13px; font-weight: 650; text-transform: uppercase;
 .btn.ghost:hover { background: var(--card-hover); }
 .btn.small { padding: 6px 11px; font-size: 13px; }
 .row { display: flex; gap: 8px; align-items: center; }
+.key-row input { flex: 1; min-width: 0; }
 
 /* ------------------------------------------------------------ historique */
 

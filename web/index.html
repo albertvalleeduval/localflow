@@ -130,7 +130,11 @@
           <div id="groq-fields" hidden>
             <div class="field">
               <label for="groq_api_key" data-i18n="settings.groq_key"></label>
-              <input type="password" id="groq_api_key" autocomplete="off" spellcheck="false">
+              <div class="row key-row">
+                <input type="password" id="groq_api_key" autocomplete="off" spellcheck="false">
+                <button class="btn ghost small" id="groq-remove-key" hidden
+                        data-i18n="settings.groq_key_remove"></button>
+              </div>
               <p class="help" data-i18n="settings.groq_key_help"></p>
             </div>
             <div class="field">

@@ -195,6 +195,9 @@ function fillSettings(cfg) {
   $("groq_api_key").value = "";
   $("groq_api_key").placeholder = t(state.groqKeySet ? "settings.groq_key_set"
                                                     : "settings.groq_key_unset");
+  // Seule une clé de config.json se retire d'ici ; celle de la variable
+  // d'environnement se gère hors de localflow.
+  $("groq-remove-key").hidden = !state.groqKeyStored;
   showBackend();
   $("language").value = cfg.language;
   $("ui_language").value = cfg.ui_language;
@@ -295,6 +298,18 @@ function showBackend() {
                                          : "settings.engine_local_help");
 }
 $("backend").addEventListener("change", showBackend);
+
+$("groq-remove-key").addEventListener("click", async () => {
+  if (!confirm(t("settings.groq_key_remove_confirm"))) return;
+  const res = await window.pywebview.api.remove_groq_key();
+  if (!res.ok) {
+    toast(res.error);
+    return;
+  }
+  await refreshState();
+  fillSettings(state.config);
+  toast(t("settings.groq_key_removed"));
+});
 
 $("save-config").addEventListener("click", async () => {
   const device = $("input_device").value;

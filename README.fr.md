@@ -116,7 +116,7 @@ la variable d'environnement `GROQ_API_KEY`.
   silencieux vers un modèle local : clé refusée, limite atteinte ou réseau
   coupé, la dictée n'est pas transcrite et une bulle le dit. La clé reste dans
   `config.json` (gitignoré), n'est jamais journalisée et n'est jamais renvoyée
-  à la fenêtre des réglages.
+  à la fenêtre des réglages ; *Retirer la clé*, à côté du champ, l'efface.
 - **Limites du plan gratuit.** Le plan gratuit de Groq plafonne les requêtes
   par minute et par jour, et l'audio par heure, pour toute l'organisation
   (partagé avec vos autres applications), et compte chaque requête pour une

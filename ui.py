@@ -131,14 +131,15 @@ class Api:
         lang = i18n.resolve(cfg["ui_language"])
         # La clé Groq ne quitte pas ce processus : la page apprend seulement
         # qu'il y en a une (config.json ou variable d'environnement).
-        groq_key_set = bool(cfg["groq_api_key"]
-                            or os.environ.get("GROQ_API_KEY"))
+        stored_key = cfg["groq_api_key"]
+        groq_key_set = bool(stored_key or os.environ.get("GROQ_API_KEY"))
         cfg = dict(cfg, groq_api_key="")
         return {
             "lang": lang,
             "strings": self._locale(lang),
             "config": cfg,
             "groqKeySet": groq_key_set,
+            "groqKeyStored": bool(stored_key),
             "defaults": config.DEFAULTS,
             "advanced": list(ADVANCED),
             # La page masque ce qui n'existe pas dans la distribution en
@@ -391,6 +392,17 @@ class Api:
                     "The whisper backend is not bundled in the executable "
                     "build. Install localflow from source to use it."}
         return self._write_config(merged)
+
+    def remove_groq_key(self):
+        """Retire la clé Groq de config.json, le reste intact. Le champ de
+        la page ne peut pas le faire : vide, il garde la clé enregistrée."""
+        try:
+            current = config.load()
+        except config.ConfigError as exc:
+            # Repartir des défauts effacerait tous les réglages.
+            return {"ok": False, "error": str(exc)}
+        current["groq_api_key"] = ""
+        return self._write_config(current)
 
     @staticmethod
     def _write_config(merged):
