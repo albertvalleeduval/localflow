@@ -130,16 +130,24 @@ class LocalFlow:
         self._commands = queue.Queue()
         self._lock = threading.Lock()
         self._recording = False      # une dictée est en cours de capture
+        self._finishing = False      # capture finie, transcription et frappe en cours
         self._injecting = False      # on est en train de frapper : ignorer nos touches
         self._stopping = False
         self._armed = True           # mode bascule : touche relâchée depuis le dernier appui
         self._app = ""               # application visée, relevée au début de la dictée
         self._limit = None           # minuterie du garde-fou de durée
+        self._active = None          # moteur de la dictée en cours
+        # Numéro du dernier chargement demandé : deux enregistrements rapides
+        # lancent deux chargements, seul le plus récent a le droit d'aboutir.
+        self._load_gen = 0
 
     # ------------------------------------------------------------- démarrage
 
-    def load(self):
-        """Charge le modèle (plusieurs secondes) et prépare la capture."""
+    def load(self, gen=0):
+        """Charge le modèle (plusieurs secondes) et prépare la capture.
+
+        Rend False si un chargement plus récent a été demandé entre-temps :
+        ce moteur-ci, construit sur une config dépassée, est jeté."""
         t0 = time.perf_counter()
         self._set_state("loading")
         engine = StreamingTranscriber(
@@ -150,19 +158,25 @@ class LocalFlow:
             min_chunk_s=self.cfg["min_chunk_s"],
             max_chunk_s=self.cfg["max_chunk_s"],
             silence_ms=self.cfg["silence_ms"],
-            log=lambda m: None,
+            log=log,
             groq_api_key=self.cfg["groq_api_key"],
             groq_model=self.cfg["groq_model"],
         )
-        self.recorder = Recorder(engine.feed,
-                                 device=self.cfg["input_device"], log=log)
-        # Publié en dernier : `engine` non nul est le signal « prêt à dicter »
-        # lu par le thread du hook clavier.
-        self.engine = engine
+        with self._lock:
+            if gen != self._load_gen:
+                log(f"{self.cfg['backend']} engine discarded: "
+                    f"a newer configuration is loading")
+                return False
+            self.recorder = Recorder(engine.feed,
+                                     device=self.cfg["input_device"], log=log)
+            # Publié en dernier : `engine` non nul est le signal « prêt à
+            # dicter » lu par le thread du hook clavier.
+            self.engine = engine
         self._set_state("hidden")
         log(f"{self.cfg['backend']} model ready in {time.perf_counter() - t0:.1f}s "
             f"(load {engine.load_time:.1f}s, "
             f"warm-up {engine.warmup_time:.1f}s)")
+        return True
 
     def bind_hotkey(self):
         """Installe le raccourci dans le mode configuré."""
@@ -181,7 +195,7 @@ class LocalFlow:
         """Lance le thread de travail, le chargement du modèle et la veille
         sur la configuration."""
         threading.Thread(target=self._work, daemon=True).start()
-        threading.Thread(target=self._load_quietly, daemon=True).start()
+        self._start_load()
         threading.Thread(target=self._watch_config, daemon=True).start()
 
     # ------------------------------------------------- rechargement à chaud
@@ -226,7 +240,7 @@ class LocalFlow:
 
         Renvoie False quand une dictée est en cours : l'appelant retente."""
         with self._lock:
-            if self._recording or self._injecting:
+            if self._recording or self._finishing:
                 return False
         old = self.cfg
         self.cfg = new
@@ -276,11 +290,18 @@ class LocalFlow:
         if new["backend"] == "groq":
             engine_keys += ["groq_api_key", "groq_model"]
         if any(new[k] != old[k] for k in engine_keys):
-            self.engine = None
-            threading.Thread(target=self._load_quietly, daemon=True).start()
+            self._start_load()
         return True
 
-    def _load_quietly(self):
+    def _start_load(self):
+        with self._lock:
+            self._load_gen += 1
+            gen = self._load_gen
+            self.engine = None
+        threading.Thread(target=self._load_quietly, args=(gen,),
+                         daemon=True).start()
+
+    def _load_quietly(self, gen):
         # Une bulle si le chargement s'éternise : au premier lancement, le
         # modèle (~2,5 Go) se télécharge — sans console ni bulle, l'outil
         # semble simplement planté. 30 s laissent passer sans bruit un
@@ -289,9 +310,11 @@ class LocalFlow:
         slow.daemon = True
         slow.start()
         try:
-            self.load()
+            self.load(gen)
         except Exception as exc:                           # noqa: BLE001
             log(f"could not load the model: {exc!r}")
+            if gen != self._load_gen:
+                return              # dépassé : le chargement suivant parlera
             self._set_state("hidden")
             # Sans elle, l'échec (réseau coupé au premier lancement, le plus
             # souvent) ne se voit que dans le journal.
@@ -430,6 +453,7 @@ class LocalFlow:
             if not self._recording:
                 return
             self._recording = False
+            self._finishing = True
         self._commands.put(("stop", reason))
 
     # ------------------------------------------------------ thread de travail
@@ -450,6 +474,7 @@ class LocalFlow:
                 log(f"error during dictation: {exc!r}")
                 with self._lock:
                     self._recording = False
+                    self._finishing = False
                 self._cancel_limit()
                 # Sinon la pastille resterait affichée pour toujours.
                 self._set_state("hidden")
@@ -458,13 +483,16 @@ class LocalFlow:
         # Relevé maintenant, pas à la fin : c'est l'application dans laquelle
         # on veut écrire, et le focus peut changer pendant qu'on parle.
         self._app = foreground_app()
-        self.engine.start()
+        # Le moteur est relevé une fois pour toute la dictée : un rechargement
+        # demandé ensuite ne doit pas le retirer sous nos pieds.
+        self._active = self.engine
+        self._active.start()
         try:
             self.recorder.start()
         except Exception:
             # Referme le cycle du moteur : son thread de travail attendrait
             # sinon indéfiniment des morceaux qui ne viendront jamais.
-            self.engine.stop()
+            self._active.stop()
             raise
         self._set_state("listening")
         # Garde-fou : un micro laissé ouvert (raccourci resté coincé, mode
@@ -476,11 +504,11 @@ class LocalFlow:
         self._limit.start()
         log("listening…")
 
-    def _report_engine_errors(self):
+    def _report_engine_errors(self, engine):
         """Backend groq : un morceau non transcrit (clé refusée, quota,
         réseau) est signalé par une bulle. Jamais de repli vers un modèle
         local — l'utilisateur doit savoir où part son audio."""
-        errors = self.engine.errors
+        errors = engine.errors
         if not errors:
             return
         log(f"groq: {len(errors)} chunk(s) not transcribed ({errors[0]})")
@@ -492,13 +520,21 @@ class LocalFlow:
             self._limit = None
 
     def _finish(self, reason=""):
+        try:
+            self._transcribe_and_write(reason)
+        finally:
+            with self._lock:
+                self._finishing = False
+
+    def _transcribe_and_write(self, reason):
+        engine = self._active
         self._cancel_limit()
         self._set_state("working")
         captured = self.recorder.stop()
         t_release = time.perf_counter()
-        text = self.engine.stop()
+        text = engine.stop()
         latency = time.perf_counter() - t_release
-        self._report_engine_errors()
+        self._report_engine_errors(engine)
         suffix = f" ({reason})" if reason and reason != "release" else ""
         if not text:
             self._set_state("hidden")
