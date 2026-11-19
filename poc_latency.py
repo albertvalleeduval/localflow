@@ -100,7 +100,12 @@ def main():
     print(f"  morceaux transcrits : {len(stats)}")
     print(f"  charge CPU pendant la dictée : {busy:.1f}s de calcul "
           f"pour {duration:.1f}s de parole ({100 * busy / duration:.0f}%)")
-    print(f"  dernier morceau : {stats[-1][0]:.1f}s audio -> {stats[-1][1]:.2f}s")
+    if stats:
+        print(f"  dernier morceau : {stats[-1][0]:.1f}s audio "
+              f"-> {stats[-1][1]:.2f}s")
+    else:
+        # Tous les morceaux ont échoué (réseau, clé Groq…) : voir plus haut.
+        print("  aucun morceau transcrit")
     print(f"  >>> LATENCE PERÇUE après relâchement : {latency:.2f}s <<<")
 
     # --- Qualité : le flux dégrade-t-il le texte ? ------------------------
