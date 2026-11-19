@@ -65,6 +65,8 @@ def main():
         max_chunk_s=cfg["max_chunk_s"],
         silence_ms=cfg["silence_ms"],
         log=lambda m: print(m, flush=True),
+        groq_api_key=cfg["groq_api_key"],
+        groq_model=cfg["groq_model"],
     )
     print(f"Modèle chargé en {eng.load_time:.1f}s, chauffe {eng.warmup_time:.1f}s",
           flush=True)
