@@ -5,6 +5,10 @@ Principe : pendant que l'utilisateur parle, l'audio est découpé en morceaux
 sur les silences et transcrit en arrière-plan. Au moment où il relâche la
 touche, il ne reste que la fin de phrase à transcrire — la latence perçue
 est celle du dernier morceau, pas de la dictée entière.
+
+Trois backends : « parakeet » et « whisper » tournent sur la machine,
+« groq » envoie l'audio à l'API de Groq (voir groq_api.py) et ne charge
+aucun modèle local.
 """
 
 import os
@@ -13,6 +17,8 @@ import threading
 import time
 
 import numpy as np
+
+from groq_api import GroqClient, GroqError, resolve_key
 
 SAMPLE_RATE = 16000
 
@@ -26,14 +32,16 @@ HALLUCINATIONS = (
 class StreamingTranscriber:
     def __init__(
         self,
-        backend="parakeet",    # "parakeet" ou "whisper"
-        model_name=None,
+        backend="parakeet",    # "parakeet", "whisper" ou "groq"
+        model_name=None,       # modèle local ; None = défaut du backend
         language="fr",
-        vocabulary="",         # whisper uniquement (initial_prompt)
+        vocabulary="",         # whisper et groq (amorce du modèle)
         min_chunk_s=3.0,       # durée mini avant d'envisager une coupe
         max_chunk_s=12.0,      # coupe forcée même sans silence
         silence_ms=400,        # silence requis pour couper
         log=None,
+        groq_api_key="",       # groq : vide = variable GROQ_API_KEY
+        groq_model="whisper-large-v3-turbo",
     ):
         self.backend = backend
         self.language = language
@@ -44,7 +52,12 @@ class StreamingTranscriber:
         self.log = log or (lambda *a: None)
 
         t0 = time.perf_counter()
-        if backend == "parakeet":
+        if backend == "groq":
+            # Pas de modèle local : rien à télécharger, presque pas de mémoire.
+            self.model = GroqClient(resolve_key(groq_api_key), groq_model,
+                                    log=self.log)
+            self.model.check()
+        elif backend == "parakeet":
             import onnx_asr
             # fp32 obligatoire : l'int8 perd la ponctuation et les majuscules
             # (mesuré au PoC du 2026-07-31).
@@ -61,8 +74,10 @@ class StreamingTranscriber:
         self.load_time = time.perf_counter() - t0
 
         # Passe de chauffe : la première inférence est toujours plus lente.
+        # Pas avec groq, où elle coûterait une requête à chaque chargement.
         t0 = time.perf_counter()
-        self._transcribe(np.zeros(SAMPLE_RATE, dtype=np.float32))
+        if backend != "groq":
+            self._transcribe(np.zeros(SAMPLE_RATE, dtype=np.float32))
         self.warmup_time = time.perf_counter() - t0
 
         self._reset()
@@ -76,6 +91,7 @@ class StreamingTranscriber:
         self._peak_rms = 1e-4
         self._parts = []
         self._chunk_stats = []   # (durée_audio_s, durée_transcription_s)
+        self._errors = []        # GroqError des morceaux non transcrits
         self._queue = queue.Queue()
         self._worker = None
 
@@ -118,6 +134,12 @@ class StreamingTranscriber:
     def chunk_stats(self):
         return list(self._chunk_stats)
 
+    @property
+    def errors(self):
+        """Échecs Groq de la dernière dictée, à lire après stop() : l'appelant
+        prévient l'utilisateur que tout ou partie n'a pas été transcrit."""
+        return list(self._errors)
+
     # ---------------------------------------------------------------- interne
 
     def _cut(self):
@@ -136,6 +158,8 @@ class StreamingTranscriber:
             try:
                 text = self._transcribe(chunk, tail=self._tail(), fast=True)
             except Exception as exc:                       # noqa: BLE001
+                if isinstance(exc, GroqError):
+                    self._errors.append(exc)
                 # Un morceau qui échoue ne doit pas tuer le thread : le reste
                 # de la dictée serait perdu sans le moindre signe.
                 self.log(f"chunk could not be transcribed, skipped: {exc!r}")
@@ -165,6 +189,8 @@ class StreamingTranscriber:
             return self.model.recognize(
                 audio, sample_rate=SAMPLE_RATE, language=self.language).strip()
         prompt = ", ".join(x for x in (self.vocabulary, tail) if x) or None
+        if self.backend == "groq":
+            return self._transcribe_groq(audio, prompt or "")
         opts = {}
         if fast:
             # Un morceau coupé en plein mot fait chuter le logprob et déclenche
@@ -183,6 +209,22 @@ class StreamingTranscriber:
             initial_prompt=prompt,
             **opts,
         )
+        return self._keep_speech(segments, fast)
+
+    def _transcribe_groq(self, audio, prompt):
+        """Groq fait tourner le même Whisper : mêmes filtres d'hallucination,
+        appliqués aux segments de la réponse verbose_json."""
+        result = self.model.transcribe(audio, SAMPLE_RATE, self.language,
+                                       prompt=prompt)
+        segments = result.get("segments")
+        if segments is None:
+            segments = [{"text": result.get("text") or ""}]
+        return self._keep_speech([_Segment(s) for s in segments], fast=True)
+
+    @staticmethod
+    def _keep_speech(segments, fast):
+        """Texte des segments, sans le silence pris pour de la parole ni les
+        formules qu'invente Whisper sur un blanc."""
         out = []
         for seg in segments:
             text = seg.text.strip()
@@ -195,3 +237,12 @@ class StreamingTranscriber:
                 continue
             out.append(text)
         return " ".join(out)
+
+
+class _Segment:
+    """Segment de réponse Groq, aux attributs des segments faster-whisper."""
+
+    def __init__(self, raw):
+        self.text = raw.get("text") or ""
+        self.no_speech_prob = float(raw.get("no_speech_prob") or 0.0)
+        self.avg_logprob = float(raw.get("avg_logprob") or 0.0)
