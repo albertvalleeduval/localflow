@@ -16,6 +16,8 @@ import http.client
 import io
 import json
 import os
+import socket
+import ssl
 import time
 import urllib.error
 import urllib.request
@@ -42,6 +44,53 @@ TIMEOUT_S = 15
 # L'amorce est plafonnée côté Groq (224 jetons) : on garde la fin, c'est-à-dire
 # le texte qui précède immédiatement le morceau.
 PROMPT_MAX_CHARS = 800
+
+# Délai de connexion par adresse. Sur un réseau dont l'IPv6 est annoncée mais
+# ne route pas, chaque adresse IPv6 de Groq expirait au bout de TIMEOUT_S :
+# 30 s perdues à chaque morceau avant que l'IPv4 ne réponde en 30 ms.
+CONNECT_TIMEOUT_S = 3
+
+
+def _open_socket(host, port, timeout):
+    """Connexion TCP, IPv4 d'abord, chaque adresse plafonnée à
+    CONNECT_TIMEOUT_S ; le délai complet ne vaut qu'une fois connecté."""
+    infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    infos.sort(key=lambda info: info[0] != socket.AF_INET)
+    if not isinstance(timeout, (int, float)):
+        timeout = TIMEOUT_S
+    last = None
+    for family, kind, proto, _, address in infos:
+        sock = socket.socket(family, kind, proto)
+        sock.settimeout(min(CONNECT_TIMEOUT_S, timeout))
+        try:
+            sock.connect(address)
+        except OSError as exc:
+            sock.close()
+            last = exc
+            continue
+        sock.settimeout(timeout)
+        return sock
+    raise last or OSError(f"no address for {host}")
+
+
+class _Connection(http.client.HTTPSConnection):
+    def connect(self):
+        sock = _open_socket(self.host, self.port, self.timeout)
+        server = self.host
+        if self._tunnel_host:  # proxy HTTP(S) : CONNECT avant le TLS
+            self.sock = sock
+            self._tunnel()
+            server = self._tunnel_host
+        self.sock = self._context.wrap_socket(sock, server_hostname=server)
+
+
+class _Handler(urllib.request.HTTPSHandler):
+    def https_open(self, req):
+        return self.do_open(_Connection, req,
+                            context=ssl.create_default_context())
+
+
+_OPENER = urllib.request.build_opener(_Handler)
 
 # Réseau coupé, délai dépassé, connexion fermée en cours de réponse.
 NETWORK_ERRORS = (OSError, http.client.HTTPException)
@@ -125,7 +174,7 @@ class GroqClient:
             headers["Content-Type"] = content_type
         request = urllib.request.Request(url, data=body, headers=headers)
         try:
-            with urllib.request.urlopen(request, timeout=timeout) as resp:
+            with _OPENER.open(request, timeout=timeout) as resp:
                 return resp.status, resp.headers, resp.read()
         except urllib.error.HTTPError as exc:
             with exc:
