@@ -32,6 +32,13 @@ SAMPLE_RATE = 16000
 # à 40 s pour que le dernier morceau, celui qu'on attend, reste court.
 GROQ_MIN_CHUNK_S = 20.0
 GROQ_MAX_CHUNK_S = 40.0
+# Reste plus court que ceci après une coupe : un bout de silence ou de souffle,
+# qui coûterait pourtant une requête facturée comme un morceau entier.
+GROQ_MIN_TAIL_S = 0.5
+# Après ces échecs, les morceaux suivants de la dictée échoueraient de même :
+# on ne les envoie pas, pour ne pas laisser l'utilisateur attendre des délais
+# réseau en série.
+GROQ_FATAL = ("key", "network")
 
 # Marqueurs d'hallucination classiques de Whisper sur du silence.
 HALLUCINATIONS = (
@@ -101,6 +108,7 @@ class StreamingTranscriber:
     def _reset(self):
         self._buf = []
         self._buf_len = 0
+        self._buf_voiced = False   # un bloc du morceau a passé le seuil
         self._silence_run = 0
         self._peak_rms = 1e-4
         self._parts = []
@@ -125,6 +133,7 @@ class StreamingTranscriber:
             self._silence_run += len(block)
         else:
             self._silence_run = 0
+            self._buf_voiced = True
 
         self._buf.append(block)
         self._buf_len += len(block)
@@ -158,22 +167,32 @@ class StreamingTranscriber:
 
     def _cut(self):
         chunk = np.concatenate(self._buf)
+        voiced = self._buf_voiced
         self._buf = []
         self._buf_len = 0
+        self._buf_voiced = False
         self._silence_run = 0
-        self._queue.put(chunk)
+        self._queue.put((chunk, voiced))
 
     def _work(self):
         while True:
-            chunk = self._queue.get()
-            if chunk is None:
+            item = self._queue.get()
+            if item is None:
                 return
+            chunk, voiced = item
+            if self.backend == "groq" and self._skip_for_groq(chunk, voiced):
+                self._parts.append("")
+                continue
             t0 = time.perf_counter()
             try:
                 text = self._transcribe(chunk, tail=self._tail(), fast=True)
             except Exception as exc:                       # noqa: BLE001
-                if isinstance(exc, GroqError):
-                    self._errors.append(exc)
+                if self.backend == "groq":
+                    # Toute panne compte, même hors GroqError (réponse
+                    # inattendue) : sinon la dictée sortirait vide sans un mot.
+                    self._errors.append(
+                        exc if isinstance(exc, GroqError)
+                        else GroqError("server", type(exc).__name__))
                 # Un morceau qui échoue ne doit pas tuer le thread : le reste
                 # de la dictée serait perdu sans le moindre signe.
                 self.log(f"chunk could not be transcribed, skipped: {exc!r}")
@@ -190,6 +209,19 @@ class StreamingTranscriber:
             self._parts.append(text)
             self.log(f"  chunk {len(self._chunk_stats)}: "
                      f"{len(chunk) / SAMPLE_RATE:.1f}s audio -> {dt:.2f}s compute")
+
+    def _skip_for_groq(self, chunk, voiced):
+        """Morceaux que l'on n'envoie pas à Groq : chaque requête compte."""
+        if any(e.kind in GROQ_FATAL for e in self._errors):
+            self.log("chunk skipped: groq already failed in this dictation")
+            return True
+        if not voiced:
+            self.log("chunk skipped: no speech in it")
+            return True
+        if self._parts and len(chunk) < GROQ_MIN_TAIL_S * SAMPLE_RATE:
+            self.log(f"chunk skipped: {len(chunk) / SAMPLE_RATE:.1f}s tail")
+            return True
+        return False
 
     def _tail(self):
         """Fin du texte déjà transcrit, passée en amorce du morceau suivant."""
