@@ -35,6 +35,10 @@ USER_AGENT = "localflow"
 # est atteint que de figer la dictée.
 MAX_RETRY_WAIT_S = 6.0
 RETRIES = 2
+# Délai d'un envoi. Groq transcrit un morceau en une fraction de seconde : au
+# bout de 15 s, le réseau est en cause, et la dictée ne doit pas rester figée
+# sur « transcription… » pendant des minutes.
+TIMEOUT_S = 15
 # L'amorce est plafonnée côté Groq (224 jetons) : on garde la fin, c'est-à-dire
 # le texte qui précède immédiatement le morceau.
 PROMPT_MAX_CHARS = 800
@@ -164,7 +168,7 @@ class GroqClient:
             attempt += 1
             try:
                 status, headers, raw = self._call(
-                    TRANSCRIPTIONS_URL, timeout=30,
+                    TRANSCRIPTIONS_URL, timeout=TIMEOUT_S,
                     body=body, content_type=content_type)
             except NETWORK_ERRORS as exc:
                 if attempt == 1:
@@ -172,10 +176,7 @@ class GroqClient:
                     continue
                 raise GroqError("network", type(exc).__name__) from None
             if 200 <= status < 300:
-                try:
-                    return json.loads(raw)
-                except ValueError:
-                    raise GroqError("server", "response is not JSON") from None
+                return _parse_transcription(raw)
             if status in (401, 403):
                 raise GroqError("key", f"HTTP {status}")
             if status == 429:
@@ -184,12 +185,31 @@ class GroqClient:
                     self.log(f"groq rate limited, retrying in {wait:.1f}s")
                     time.sleep(wait)
                     continue
-                raise GroqError("quota", f"retry after {wait:.0f}s: "
-                                         f"{_error_message(raw)}")
+                # Sans le message de Groq : il cite l'identifiant de
+                # l'organisation, qui n'a rien à faire dans le journal.
+                raise GroqError("quota", f"retry after {wait:.0f}s")
             if status >= 500 and attempt <= RETRIES:
                 time.sleep(0.5 * attempt)
                 continue
             raise GroqError("server", f"HTTP {status}: {_error_message(raw)}")
+
+
+def _parse_transcription(raw):
+    """Réponse verbose_json vérifiée : un objet, un texte, des segments qui
+    sont des objets. Toute autre forme est une erreur du serveur, signalée
+    comme telle plutôt que de vider la dictée en silence."""
+    try:
+        result = json.loads(raw)
+    except ValueError:
+        raise GroqError("server", "response is not JSON") from None
+    if not isinstance(result, dict) or not isinstance(result.get("text", ""), str):
+        raise GroqError("server", "unexpected response shape")
+    segments = result.get("segments")
+    if segments is not None and not (
+            isinstance(segments, list)
+            and all(isinstance(s, dict) for s in segments)):
+        raise GroqError("server", "unexpected response shape")
+    return result
 
 
 def _retry_after(headers):
