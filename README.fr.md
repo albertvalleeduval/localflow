@@ -4,8 +4,9 @@
 
 Dictée système locale et gratuite pour Windows : on tient une touche, on parle,
 on relâche, et le texte reconnu s'écrit dans le champ actif de n'importe quelle
-application. Tout tourne en local sur le CPU — aucun compte, aucun quota,
-aucun audio qui sort de la machine.
+application. Par défaut tout tourne en local sur le CPU — aucun compte, aucun
+quota, aucun audio qui sort de la machine. Un backend en ligne (Groq) existe en
+option, inactif tant qu'on ne l'a pas choisi.
 
 Alternative personnelle à Wispr Flow, avec la même exigence : la latence
 perçue doit rester sous la seconde quelle que soit la durée dictée.
@@ -41,7 +42,8 @@ ne reste qu'une fin de phrase à traiter, d'où une latence quasi constante.
 
 Moteur : [`parakeet-tdt-0.6b-v3`](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3)
 (NVIDIA, 25 langues, ponctuation et majuscules natives) via `onnx-asr` en fp32
-sur CPU. Un backend faster-whisper reste disponible en option.
+sur CPU. Un backend faster-whisper reste disponible en option, de même qu'un
+backend en ligne, [Groq](#option--transcription-en-ligne-avec-groq).
 
 ## Latence mesurée
 
@@ -94,6 +96,40 @@ HuggingFace).
 Régler `language` dans `config.json` (ou plus tard dans l'onglet Réglages) sur
 la langue que l'on dicte — `config.example.json` part sur `"en"`, mettre
 `"fr"` pour dicter en français.
+
+### Option : transcription en ligne avec Groq
+
+Pour une machine trop juste en mémoire, ou pour la qualité de Whisper
+`large-v3`, le backend `groq` envoie l'audio à [l'API de transcription de
+Groq](https://console.groq.com/docs/speech-to-text) au lieu de le transcrire
+sur place (`whisper-large-v3-turbo` par défaut, `whisper-large-v3` au choix).
+Aucun modèle local n'est alors chargé. Il marche aussi bien depuis les sources
+que dans le zip de release, sans dépendance de plus.
+
+Pour l'activer, créer une clé d'API dans la [console Groq](https://console.groq.com/keys),
+puis choisir Groq dans Réglages > Moteur et y coller la clé. Ou à la main :
+`"backend": "groq"` dans `config.json`, avec la clé dans `groq_api_key` ou dans
+la variable d'environnement `GROQ_API_KEY`.
+
+- **L'audio quitte la machine.** Chaque morceau est envoyé à Groq et traité
+  selon ses propres conditions et sa politique de confidentialité. Aucun repli
+  silencieux vers un modèle local : clé refusée, limite atteinte ou réseau
+  coupé, la dictée n'est pas transcrite et une bulle le dit. La clé reste dans
+  `config.json` (gitignoré), n'est jamais journalisée et n'est jamais renvoyée
+  à la fenêtre des réglages.
+- **Limites du plan gratuit.** Le plan gratuit de Groq plafonne les requêtes
+  par minute et par jour, et l'audio par heure, pour toute l'organisation
+  (partagé avec vos autres applications), et compte chaque requête pour une
+  durée d'audio minimale. Les chiffres à jour sont dans [la page des limites de
+  Groq](https://console.groq.com/docs/rate-limits). Pour ménager les requêtes,
+  ce backend découpe en bien plus gros morceaux : une dictée de moins de 20 s
+  part en une seule requête au relâchement ; au-delà, coupe sur le premier
+  silence passé 20 s, et d'office à 40 s. `min_chunk_s` et `max_chunk_s` ne
+  descendent pas sous ces valeurs avec Groq. Une requête limitée est retentée
+  quand Groq demande d'attendre quelques secondes au plus, sinon signalée.
+- Les filtres d'hallucination de Whisper et vos corrections s'appliquent au
+  texte renvoyé comme pour les backends locaux, et `vocabulary` est passé en
+  amorce (prompt) à Groq.
 
 ## Utilisation
 
@@ -244,11 +280,13 @@ affiche la config effective.
 |---|---|---|
 | `hotkey` | `ctrl+alt+d` | Raccourci de dictée : modificateurs (`ctrl`, `alt`, `shift`, `win`) puis une touche, séparés par `+`. La touche finale est consommée par localflow : elle ne parvient pas à l'application active, donc `ctrl+win` n'ouvre pas le menu Démarrer. |
 | `mode` | `hold` | `hold` : tenir la touche. `toggle` : un appui démarre, un appui arrête. |
-| `backend` | `parakeet` | `parakeet` (CPU, recommandé) ou `whisper` (faster-whisper, installation depuis les sources uniquement). |
-| `model` | `null` | Nom du modèle ; `null` = défaut du backend. |
+| `backend` | `parakeet` | `parakeet` (CPU, recommandé), `whisper` (faster-whisper, installation depuis les sources uniquement) ou `groq` (en ligne, voir [plus haut](#option--transcription-en-ligne-avec-groq)). |
+| `model` | `null` | Nom du modèle local ; `null` = défaut du backend. |
+| `groq_api_key` | `""` | Clé d'API Groq ; vide = variable d'environnement `GROQ_API_KEY`. Jamais affichée ni journalisée. |
+| `groq_model` | `whisper-large-v3-turbo` | `whisper-large-v3-turbo` ou `whisper-large-v3`. |
 | `language` | `en` | Langue forcée (réglez-la sur la vôtre — voir Installation). |
 | `replacements` | `{}` | Corrections appliquées au texte final, `{"motif": "remplacement"}`. |
-| `vocabulary` | `""` | Noms propres passés en `initial_prompt` — backend `whisper` uniquement. |
+| `vocabulary` | `""` | Noms propres passés en `initial_prompt` (backend `whisper`) ou en amorce (backend `groq`). |
 | `paste_mode` | `clipboard` | `clipboard` : Ctrl+V (rapide). `type` : frappe caractère par caractère, pour les champs qui bloquent le collage. |
 | `type_delay_ms` | `10` | Cadence de la frappe de secours. Les fenêtres Win32 classiques suivent à `0` ; certaines applications modernes exigent bien plus (voir les limites). |
 | `min_chunk_s` | `3.0` | Durée mini d'un morceau avant d'envisager une coupe sur silence. |
@@ -262,7 +300,8 @@ affiche la config effective.
 
 - Windows uniquement (raccourci global, presse-papiers et injection sont
   spécifiques à la plateforme).
-- Le zip de release n'embarque que le moteur Parakeet. Le backend `whisper`
+- Le zip de release embarque le moteur Parakeet (plus le backend en ligne
+  Groq, qui ne demande aucun modèle local). Le backend `whisper`
   optionnel demande une installation depuis les sources plus
   `pip install faster-whisper` — et n'est de toute façon pas recommandé sur
   CPU (voir la section latence).

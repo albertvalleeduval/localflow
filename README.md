@@ -4,8 +4,9 @@
 
 Free, local system-wide dictation for Windows: hold a key, speak, release,
 and the recognized text is typed into the active field of any application.
-Everything runs locally on the CPU — no account, no quota, no audio ever
-leaving your machine.
+By default everything runs locally on the CPU — no account, no quota, no audio
+ever leaving your machine. An online backend (Groq) exists as an option, off
+unless you turn it on.
 
 A personal alternative to Wispr Flow, with the same core requirement:
 perceived latency must stay under one second no matter how long you dictate.
@@ -40,7 +41,8 @@ remains to be processed — hence a near-constant latency.
 
 Engine: [`parakeet-tdt-0.6b-v3`](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3)
 (NVIDIA, 25 languages, native punctuation and capitalization) via `onnx-asr`
-in fp32 on CPU. A faster-whisper backend remains available as an option.
+in fp32 on CPU. A faster-whisper backend remains available as an option, and
+so does an online one, [Groq](#optional-online-transcription-with-groq).
 
 ## Measured latency
 
@@ -91,6 +93,38 @@ The model downloads itself on first launch (~2.5 GB, cached by HuggingFace).
 
 Set `language` in `config.json` (or later in the Settings tab) to the language
 you dictate in — `"en"`, `"fr"`, or any of the 25 languages Parakeet supports.
+
+### Optional: online transcription with Groq
+
+For a machine short on memory, or for the quality of Whisper `large-v3`, the
+`groq` backend sends the audio to [Groq's speech-to-text
+API](https://console.groq.com/docs/speech-to-text) instead of transcribing it
+on the spot (`whisper-large-v3-turbo` by default, `whisper-large-v3` as an
+option). No local model is loaded then. It works from source and in the release
+zip alike, with no extra dependency.
+
+To turn it on, create an API key in the [Groq console](https://console.groq.com/keys),
+then pick Groq in Settings > Engine and paste the key. Or by hand:
+`"backend": "groq"` in `config.json`, with the key in `groq_api_key` or in the
+`GROQ_API_KEY` environment variable.
+
+- **Your audio leaves your machine.** Every chunk is uploaded to Groq and
+  handled under Groq's own terms and privacy policy. There is no silent
+  fallback to a local model: if the key is rejected, the rate limit reached or
+  the network down, the dictation is not transcribed and a notification says
+  so. The key stays in `config.json` (git-ignored), is never logged, and is
+  never sent back to the settings window.
+- **Free plan limits.** Groq's free plan caps requests per minute and per day,
+  and audio per hour, for the whole organization (shared with your other
+  apps), and bills each request as a minimum length of audio. See [Groq's rate
+  limits](https://console.groq.com/docs/rate-limits) for the current figures.
+  To spare requests, this backend cuts much bigger chunks: a dictation under
+  20 s is one request on release; a longer one is cut on the first silence
+  after 20 s, and always at 40 s. `min_chunk_s` and `max_chunk_s` never go
+  below these values with Groq. A rate-limited request is retried when Groq
+  asks to wait a few seconds at most, otherwise reported.
+- Whisper's hallucination filters and your corrections apply to the returned
+  text as with the local backends, and `vocabulary` is passed as Groq's prompt.
 
 ## Usage
 
@@ -235,11 +269,13 @@ the effective configuration.
 |---|---|---|
 | `hotkey` | `ctrl+alt+d` | Dictation hotkey: modifiers (`ctrl`, `alt`, `shift`, `win`) then one key, separated by `+`. The final key is consumed by localflow: it never reaches the active application, so `ctrl+win` does not open the Start menu. |
 | `mode` | `hold` | `hold`: keep the key pressed. `toggle`: one press starts, one press stops. |
-| `backend` | `parakeet` | `parakeet` (CPU, recommended) or `whisper` (faster-whisper, source install only). |
-| `model` | `null` | Model name; `null` = backend default. |
+| `backend` | `parakeet` | `parakeet` (CPU, recommended), `whisper` (faster-whisper, source install only) or `groq` (online, see [above](#optional-online-transcription-with-groq)). |
+| `model` | `null` | Local model name; `null` = backend default. |
+| `groq_api_key` | `""` | Groq API key; empty = `GROQ_API_KEY` environment variable. Never shown nor logged. |
+| `groq_model` | `whisper-large-v3-turbo` | `whisper-large-v3-turbo` or `whisper-large-v3`. |
 | `language` | `en` | Forced language (set it to yours — see Installation). |
 | `replacements` | `{}` | Corrections applied to the final text, `{"pattern": "replacement"}`. |
-| `vocabulary` | `""` | Proper nouns passed as `initial_prompt` — `whisper` backend only. |
+| `vocabulary` | `""` | Proper nouns passed as `initial_prompt` (`whisper` backend) or as the prompt (`groq` backend). |
 | `paste_mode` | `clipboard` | `clipboard`: Ctrl+V (fast). `type`: character-by-character typing, for fields that block pasting. |
 | `type_delay_ms` | `10` | Pace of the fallback typing. Classic Win32 windows keep up at `0`; some modern apps need much more (see known limits). |
 | `min_chunk_s` | `3.0` | Minimum chunk duration before considering a cut on silence. |
@@ -252,7 +288,8 @@ the effective configuration.
 ## Known limits
 
 - Windows only (global hotkey, clipboard and injection are platform-specific).
-- The release zip ships the Parakeet engine only. The optional `whisper`
+- The release zip ships the Parakeet engine (plus the online Groq backend,
+  which needs no local model). The optional `whisper`
   backend needs a source install plus `pip install faster-whisper` — and is
   not recommended on CPU anyway (see the latency section).
 - If the target application runs as administrator, injection fails silently:
