@@ -37,6 +37,7 @@ import config
 import i18n
 import runtime
 from engine import StreamingTranscriber
+from groq_api import GroqError
 from history import History
 from hotkey import HotkeyError, HotkeyListener
 from injector import Injector, foreground_app
@@ -48,6 +49,9 @@ LOG_PATH = os.path.join(runtime.DATA_DIR, "localflow.log")
 # Préfixe Local\ : un verrou par session utilisateur, voulu — le hook clavier
 # et le micro sont propres à la session, deux sessions peuvent cohabiter.
 MUTEX_NAME = "Local\\localflow-single-instance"
+# Bulle montrée pour chaque type d'échec Groq (voir groq_api.GroqError).
+GROQ_MESSAGES = {"key": "tray.groq_key", "quota": "tray.groq_quota",
+                 "network": "tray.groq_network", "server": "tray.groq_server"}
 
 _logger = logging.getLogger("localflow")
 
@@ -147,6 +151,8 @@ class LocalFlow:
             max_chunk_s=self.cfg["max_chunk_s"],
             silence_ms=self.cfg["silence_ms"],
             log=lambda m: None,
+            groq_api_key=self.cfg["groq_api_key"],
+            groq_model=self.cfg["groq_model"],
         )
         self.recorder = Recorder(engine.feed,
                                  device=self.cfg["input_device"], log=log)
@@ -264,10 +270,12 @@ class LocalFlow:
             self.recorder.device = new["input_device"]
 
         # Le moteur coûte plusieurs secondes à recharger : seulement si ce qui
-        # le définit a bougé.
-        if any(new[k] != old[k] for k in
-               ("backend", "model", "language", "vocabulary",
-                "min_chunk_s", "max_chunk_s", "silence_ms")):
+        # le définit a bougé. Les réglages Groq ne comptent qu'avec ce backend.
+        engine_keys = ["backend", "model", "language", "vocabulary",
+                       "min_chunk_s", "max_chunk_s", "silence_ms"]
+        if new["backend"] == "groq":
+            engine_keys += ["groq_api_key", "groq_model"]
+        if any(new[k] != old[k] for k in engine_keys):
             self.engine = None
             threading.Thread(target=self._load_quietly, daemon=True).start()
         return True
@@ -287,7 +295,10 @@ class LocalFlow:
             self._set_state("hidden")
             # Sans elle, l'échec (réseau coupé au premier lancement, le plus
             # souvent) ne se voit que dans le journal.
-            self._notify("tray.load_failed_title", "tray.load_failed")
+            if isinstance(exc, GroqError):
+                self._notify("tray.groq_error_title", GROQ_MESSAGES[exc.kind])
+            else:
+                self._notify("tray.load_failed_title", "tray.load_failed")
         finally:
             slow.cancel()
 
@@ -465,6 +476,16 @@ class LocalFlow:
         self._limit.start()
         log("listening…")
 
+    def _report_engine_errors(self):
+        """Backend groq : un morceau non transcrit (clé refusée, quota,
+        réseau) est signalé par une bulle. Jamais de repli vers un modèle
+        local — l'utilisateur doit savoir où part son audio."""
+        errors = self.engine.errors
+        if not errors:
+            return
+        log(f"groq: {len(errors)} chunk(s) not transcribed ({errors[0]})")
+        self._notify("tray.groq_error_title", GROQ_MESSAGES[errors[0].kind])
+
     def _cancel_limit(self):
         if self._limit is not None:
             self._limit.cancel()
@@ -477,6 +498,7 @@ class LocalFlow:
         t_release = time.perf_counter()
         text = self.engine.stop()
         latency = time.perf_counter() - t_release
+        self._report_engine_errors()
         suffix = f" ({reason})" if reason and reason != "release" else ""
         if not text:
             self._set_state("hidden")

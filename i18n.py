@@ -73,6 +73,18 @@ CATALOG = {
         "tray.load_failed":
             "Le chargement du modèle a échoué. Vérifiez la connexion, "
             "puis ouvrez le journal.",
+        "tray.groq_error_title": "Dictée non transcrite (Groq)",
+        "tray.groq_key":
+            "Clé Groq absente ou refusée. Renseignez-la dans les réglages "
+            "(ou groq_api_key dans config.json), ou repassez en moteur local.",
+        "tray.groq_quota":
+            "Limite de requêtes Groq atteinte. Réessayez dans un moment, "
+            "ou repassez en moteur local.",
+        "tray.groq_network":
+            "Groq injoignable : vérifiez la connexion internet. Rien n'a "
+            "été transcrit en local.",
+        "tray.groq_server":
+            "Groq a renvoyé une erreur. Le détail est dans le journal.",
 
         # Traits mesurés de la page Ma voix
         "voice.words_per_sentence": "Mots par phrase",
@@ -122,6 +134,18 @@ CATALOG = {
         "tray.load_failed":
             "The model could not be loaded. Check your connection, "
             "then open the log.",
+        "tray.groq_error_title": "Dictation not transcribed (Groq)",
+        "tray.groq_key":
+            "Groq API key missing or rejected. Set it in the settings (or "
+            "groq_api_key in config.json), or switch back to a local engine.",
+        "tray.groq_quota":
+            "Groq rate limit reached. Try again in a moment, or switch back "
+            "to a local engine.",
+        "tray.groq_network":
+            "Groq is unreachable: check your internet connection. Nothing "
+            "was transcribed locally.",
+        "tray.groq_server":
+            "Groq returned an error. Details are in the log.",
 
         "voice.words_per_sentence": "Words per sentence",
         "voice.vocabulary": "Distinct vocabulary",
