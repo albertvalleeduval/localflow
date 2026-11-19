@@ -123,7 +123,23 @@
             <select id="backend">
               <option value="parakeet" data-i18n="settings.engine_parakeet"></option>
               <option value="whisper" data-i18n="settings.engine_whisper"></option>
+              <option value="groq" data-i18n="settings.engine_groq"></option>
             </select>
+            <p class="help" id="backend-help"></p>
+          </div>
+          <div id="groq-fields" hidden>
+            <div class="field">
+              <label for="groq_api_key" data-i18n="settings.groq_key"></label>
+              <input type="password" id="groq_api_key" autocomplete="off" spellcheck="false">
+              <p class="help" data-i18n="settings.groq_key_help"></p>
+            </div>
+            <div class="field">
+              <label for="groq_model" data-i18n="settings.groq_model"></label>
+              <select id="groq_model">
+                <option value="whisper-large-v3-turbo" data-i18n="settings.groq_model_turbo"></option>
+                <option value="whisper-large-v3" data-i18n="settings.groq_model_large"></option>
+              </select>
+            </div>
           </div>
           <div class="field">
             <label for="language" data-i18n="settings.language"></label>

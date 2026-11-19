@@ -189,6 +189,13 @@ function fillSettings(cfg) {
   }
 
   $("backend").value = cfg.backend;
+  $("groq_model").value = cfg.groq_model;
+  // La clé ne revient jamais du disque vers la page : le champ reste vide et
+  // dit seulement si une clé est déjà en place.
+  $("groq_api_key").value = "";
+  $("groq_api_key").placeholder = t(state.groqKeySet ? "settings.groq_key_set"
+                                                    : "settings.groq_key_unset");
+  showBackend();
   $("language").value = cfg.language;
   $("ui_language").value = cfg.ui_language;
   $("paste_mode").value = cfg.paste_mode;
@@ -280,10 +287,22 @@ function finishRecording(hotkey) {
   $("hotkey-box").textContent = hotkey;
 }
 
+// Le choix du moteur dit où part l'audio : nulle part, ou chez Groq.
+function showBackend() {
+  const groq = $("backend").value === "groq";
+  $("groq-fields").hidden = !groq;
+  $("backend-help").textContent = t(groq ? "settings.engine_groq_help"
+                                         : "settings.engine_local_help");
+}
+$("backend").addEventListener("change", showBackend);
+
 $("save-config").addEventListener("click", async () => {
   const device = $("input_device").value;
   const cfg = Object.assign({}, draft, {
     backend: $("backend").value,
+    groq_model: $("groq_model").value,
+    // Vide = garder la clé déjà enregistrée (voir save_config dans ui.py).
+    groq_api_key: $("groq_api_key").value.trim(),
     language: $("language").value,
     ui_language: $("ui_language").value,
     paste_mode: $("paste_mode").value,

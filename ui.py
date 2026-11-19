@@ -129,10 +129,16 @@ class Api:
         except config.ConfigError as exc:
             cfg, error = dict(config.DEFAULTS), str(exc)
         lang = i18n.resolve(cfg["ui_language"])
+        # La clé Groq ne quitte pas ce processus : la page apprend seulement
+        # qu'il y en a une (config.json ou variable d'environnement).
+        groq_key_set = bool(cfg["groq_api_key"]
+                            or os.environ.get("GROQ_API_KEY"))
+        cfg = dict(cfg, groq_api_key="")
         return {
             "lang": lang,
             "strings": self._locale(lang),
             "config": cfg,
+            "groqKeySet": groq_key_set,
             "defaults": config.DEFAULTS,
             "advanced": list(ADVANCED),
             # La page masque ce qui n'existe pas dans la distribution en
@@ -360,6 +366,13 @@ class Api:
         # page des réglages ne les envoie plus, et le disque fait foi. Sans
         # cette ligne, enregistrer les réglages les effacerait toutes.
         merged["replacements"] = self._current_config()["replacements"]
+        # La page ne reçoit jamais la clé Groq (voir get_state) : un champ
+        # laissé vide veut dire « garder celle qui est enregistrée ».
+        key = merged["groq_api_key"]
+        if isinstance(key, str) and key.strip():
+            merged["groq_api_key"] = key.strip()
+        else:
+            merged["groq_api_key"] = self._current_config()["groq_api_key"]
         try:
             config._validate(merged)
         except config.ConfigError as exc:
